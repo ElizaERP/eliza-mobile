@@ -1,0 +1,15 @@
+# Ejemplo de servicio Keycloak con import automático del realm versionado.
+# Para ambientes NUEVOS (el tuyo ya tiene el realm "eliza" — no lo necesitás).
+# El import NO sobreescribe un realm existente.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: eliza-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./eliza-realm-export.json:/opt/keycloak/data/import/eliza-realm-export.json:ro

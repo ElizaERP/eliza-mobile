@@ -12,20 +12,18 @@ const config: ExpoConfig = {
   scheme: 'eliza',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
-  newArchEnabled: true,
-  splash: {
-    backgroundColor: '#0B3A53',
-    resizeMode: 'contain',
-  },
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.bcmcongelados.eliza',
   },
   android: {
     package: 'com.bcmcongelados.eliza',
-    edgeToEdgeEnabled: true,
   },
-  plugins: ['expo-router', 'expo-secure-store'],
+  plugins: [
+    'expo-router',
+    'expo-secure-store',
+    ['expo-splash-screen', { backgroundColor: '#0B3A53', resizeMode: 'contain' }],
+  ],
   experiments: { typedRoutes: true },
 };
 

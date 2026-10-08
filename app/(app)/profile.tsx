@@ -4,10 +4,12 @@ import { Stack } from 'expo-router';
 import { signOut, useAuthStore } from '@/core/auth';
 import { Button } from '@/components/ui/Button';
 import { InfoRow } from '@/components/ui/InfoRow';
+import { BackendStatus } from '@/components/BackendStatus';
 
 /**
  * Perfil: muestra los claims del token (verificación visual de que
- * tenant_id y roles llegan correctamente) + cierre de sesión.
+ * tenant_id y roles llegan correctamente), prueba de conexión con el
+ * backend (API lista + token aceptado) y cierre de sesión.
  */
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
@@ -40,6 +42,8 @@ export default function ProfileScreen() {
           <InfoRow label="Bodega" value={user?.warehouseId ?? '—'} />
           <InfoRow label="Roles" value={user?.roles.length ? user.roles.join(', ') : '⚠️ sin roles'} />
         </View>
+
+        <BackendStatus />
 
         <View className="my-6">
           <Button label="Cerrar sesión" variant="danger" onPress={() => void handleSignOut()} loading={busy} />

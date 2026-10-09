@@ -65,7 +65,9 @@ function ModuleCard({ module }: { module: ModuleDef }) {
       onPress={() =>
         module.id === 'catalogo'
           ? router.push('/(app)/catalogo')
-          : router.push({ pathname: '/(app)/module/[id]', params: { id: module.id } })
+          : module.id === 'inventario'
+            ? router.push('/(app)/inventario')
+            : router.push({ pathname: '/(app)/module/[id]', params: { id: module.id } })
       }
       className="min-h-36 flex-1 justify-between rounded-2xl border border-ice-100 bg-white p-4 active:bg-ice-50"
     >

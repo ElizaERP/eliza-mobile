@@ -110,6 +110,13 @@ export function canCreateSalesOrders(roles: string[]): boolean {
   return roles.some((r) => ORDER_AUTHOR_ROLES.includes(r));
 }
 
+/** Pueden registrar clientes con crédito (CREDIT_GRANTER_ROLES de customers.controller.ts). */
+const CREDIT_GRANTER_ROLES: readonly string[] = ['Tenant.Admin', 'Sales.Manager'];
+
+export function canGrantCredit(roles: string[]): boolean {
+  return roles.some((r) => CREDIT_GRANTER_ROLES.includes(r));
+}
+
 export function canReadCustomers(roles: string[]): boolean {
   return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
 }

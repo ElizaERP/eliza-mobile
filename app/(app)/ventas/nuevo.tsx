@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ApiError } from '@/core/http/apiClient';
 import { Card, Section } from '@/components/ui/Section';
 import type { Product } from '@/features/catalog/api';
@@ -19,6 +20,7 @@ import { formatSalePrice } from '@/features/catalog/labels';
 import type { ClienteListItem } from '@/features/sales/api';
 import { useCrearPedido, useCustomerList } from '@/features/sales/hooks';
 import { CONDICIONES_PAGO, money } from '@/features/sales/labels';
+import { RegistrarClienteForm } from '@/features/sales/RegistrarClienteForm';
 
 /**
  * Nuevo pedido (Sprint 10). El vendedor elige el cliente y las cantidades; el precio sale
@@ -27,6 +29,7 @@ import { CONDICIONES_PAGO, money } from '@/features/sales/labels';
  */
 export default function NuevoPedidoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [cliente, setCliente] = useState<ClienteListItem | null>(null);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
   const [notas, setNotas] = useState('');
@@ -151,7 +154,8 @@ export default function NuevoPedidoScreen() {
         </ScrollView>
 
         {/* Resumen y botón fijo abajo */}
-        <View className="border-t border-ice-100 bg-white px-5 pb-6 pt-3">
+        {/* paddingBottom respeta la barra de navegación de Android / el indicador de iOS */}
+        <View className="border-t border-ice-100 bg-white px-5 pt-3" style={{ paddingBottom: Math.max(insets.bottom, 12) + 12 }}>
           <View className="flex-row items-end justify-between">
             <View>
               <Text className="text-xs text-graphite-400">
@@ -185,6 +189,7 @@ export default function NuevoPedidoScreen() {
 }
 
 function SelectorCliente({ onSelect }: { onSelect: (c: ClienteListItem) => void }) {
+  const [registrando, setRegistrando] = useState(false);
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
   useEffect(() => {
@@ -194,8 +199,19 @@ function SelectorCliente({ onSelect }: { onSelect: (c: ClienteListItem) => void 
   const list = useCustomerList(q, q.length === 0 || q.length >= 2);
   const clientes = (list.data?.pages.flatMap((p) => p.items) ?? []).filter((c) => c.estado === 'Activo').slice(0, 15);
 
+  if (registrando) {
+    return <RegistrarClienteForm onCreated={onSelect} onCancel={() => setRegistrando(false)} />;
+  }
+
   return (
     <View className="gap-2">
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setRegistrando(true)}
+        className="min-h-11 flex-row items-center justify-center rounded-2xl border border-dashed border-frost-700 bg-white"
+      >
+        <Text className="text-sm font-semibold text-frost-900">+ Registrar cliente nuevo</Text>
+      </Pressable>
       <TextInput
         value={text}
         onChangeText={setText}
@@ -262,7 +278,8 @@ function FilaProducto({
               keyboardType="number-pad"
               editable={!disabled}
               accessibilityLabel={`Cantidad de ${product.name}`}
-              className="h-10 w-14 rounded-xl border border-ice-100 text-center text-base font-semibold text-graphite-900"
+              style={{ paddingVertical: 0, textAlignVertical: 'center', includeFontPadding: false }}
+              className="h-11 w-16 rounded-xl border border-ice-100 text-center text-lg font-semibold text-graphite-900"
             />
             <Paso label="+" onPress={() => onChange(cantidad + 1)} disabled={disabled} />
           </View>

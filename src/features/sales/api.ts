@@ -131,6 +131,29 @@ export async function listSalesOrders(params: {
   return data;
 }
 
+export interface NuevoClienteBody {
+  codigo: string;
+  nit: string;
+  razonSocial: string;
+  nombreComercial?: string;
+  /** Solo gerente/admin pueden enviar crédito; el vendedor registra a Contado (backend). */
+  condicionesPago?: CondicionesPago;
+  direccionFiscal: { direccion: string; ciudad: string; departamento: string; telefono?: string };
+  contactoNombre?: string;
+  contactoTelefono?: string;
+  contactoEmail?: string;
+}
+
+export async function createCustomer(body: NuevoClienteBody): Promise<Cliente> {
+  const { data } = await apiClient.post<Cliente>('/v1/sales/customers', body);
+  return data;
+}
+
+/** Código de cliente creado desde la app: CLI-M-AAMMDDHHMMSS-XXX. */
+export function nuevoCodigoCliente(now = new Date()): string {
+  return nuevoCodigoPedido(now).replace(/^PV-/, 'CLI-');
+}
+
 export async function createSalesOrder(body: { codigo: string; clienteId: string; notas?: string }): Promise<Pedido> {
   const { data } = await apiClient.post<Pedido>('/v1/sales/orders', body);
   return data;

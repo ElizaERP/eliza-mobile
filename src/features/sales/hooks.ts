@@ -2,13 +2,17 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import type { ApiError } from '@/core/http/apiClient';
 import {
   addSalesOrderLine,
+  createCustomer,
   createSalesOrder,
   getCustomer,
   getSalesOrder,
   listCustomers,
   listSalesOrders,
+  nuevoCodigoCliente,
   nuevoCodigoPedido,
+  type Cliente,
   type EstadoPedido,
+  type NuevoClienteBody,
   type Page,
   type Pedido,
 } from './api';
@@ -100,5 +104,15 @@ export function useCrearPedido() {
       return { pedido, fallidas };
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['sales', 'orders'] }),
+  });
+}
+
+/** Registra un cliente (el código lo genera la app) y refresca las listas de clientes. */
+export function useRegistrarCliente() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Omit<NuevoClienteBody, 'codigo'>): Promise<Cliente> =>
+      createCustomer({ ...body, codigo: nuevoCodigoCliente() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales', 'customers'] }),
   });
 }

@@ -1,14 +1,16 @@
 import type { ExpoConfig } from 'expo/config';
 
 /**
- * ELIZA Mobile — Sprint 9.1
- * Configuración por ambiente vía variables EXPO_PUBLIC_* (archivo .env).
- * El scheme "eliza" habilita el deep link eliza://auth/callback para OIDC.
+ * ELIZA Mobile
+ * Configuración por ambiente vía variables EXPO_PUBLIC_*:
+ *  - en desarrollo (Expo Go) salen del archivo .env;
+ *  - en los builds de EAS salen de eas.json (el .env no se sube a la nube).
  */
 const config: ExpoConfig = {
   name: 'ELIZA',
   slug: 'eliza-mobile',
-  version: '0.9.1',
+  owner: 'santodev097',
+  version: '0.10.0',
   scheme: 'eliza',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
@@ -25,6 +27,10 @@ const config: ExpoConfig = {
     ['expo-splash-screen', { backgroundColor: '#0B3A53', resizeMode: 'contain' }],
   ],
   experiments: { typedRoutes: true },
+  extra: {
+    // Proyecto en EAS (expo.dev): https://expo.dev/accounts/santodev097/projects/eliza-mobile
+    eas: { projectId: '82b30911-f051-4bc2-9d93-e62658a2662a' },
+  },
 };
 
 export default config;

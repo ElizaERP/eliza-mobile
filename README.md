@@ -69,3 +69,16 @@ npm run start:clear
   `warehouse_id`, `roles` (plano). Compartido entre `eliza-mobile` y
   `eliza-api`.
 - El escáner de códigos (expo-camera) entra en el Sprint 9.3 (Inventario).
+
+## APK para instalar sin Expo Go (EAS Build)
+
+El perfil `preview` de `eas.json` genera un **APK** con la URL pública de la API
+(`https://eliza-dev.taile05b63.ts.net:8443/api`, Tailscale Funnel). El `.env` no se
+sube a la nube: en los builds la URL sale de `eas.json`.
+
+```powershell
+npx eas-cli@latest build -p android --profile preview
+```
+
+Al terminar, Expo muestra un enlace y un QR para descargar el APK. El teléfono
+no necesita Tailscale ni Expo Go. Proyecto: https://expo.dev/accounts/santodev097/projects/eliza-mobile

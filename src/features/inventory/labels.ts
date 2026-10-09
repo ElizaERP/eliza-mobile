@@ -1,5 +1,5 @@
 import type { Tone } from '@/features/catalog/labels';
-import type { EstadoLote, TipoMovimiento } from './api';
+import type { EstadoLote, StockByLot, StockSummary, StockUbicacion, TipoMovimiento } from './api';
 
 export const LOTE_ESTADO: Record<EstadoLote, { label: string; tone: Tone }> = {
   Disponible: { label: 'Disponible', tone: 'ok' },
@@ -57,4 +57,18 @@ export function expiryText(days: number): { text: string; tone: Tone } {
 
 export function qty(n: number): string {
   return n.toLocaleString('es-CO');
+}
+
+/** Lote y ubicación de una existencia dentro del resumen de stock (contar / mover). */
+export function buscarExistencia(stock: StockSummary | undefined, existenciaId: string): { lote: StockByLot; ubicacion: StockUbicacion } | null {
+  for (const lote of stock?.porLote ?? []) {
+    const ubicacion = lote.ubicaciones.find((u) => u.existenciaId === existenciaId);
+    if (ubicacion) return { lote, ubicacion };
+  }
+  return null;
+}
+
+/** Físico de una ubicación: disponible + reservado + bloqueado. */
+export function fisicoDe(u: StockUbicacion): number {
+  return Math.round((u.cantidadDisponible + u.cantidadReservada + u.cantidadBloqueada) * 1e6) / 1e6;
 }

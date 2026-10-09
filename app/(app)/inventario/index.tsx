@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
+import { canManageInventory } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import type { Product } from '@/features/catalog/api';
 import { useProductList, useProductsByIds } from '@/features/catalog/hooks';
@@ -26,15 +28,34 @@ import {
 } from '@/features/inventory/labels';
 
 /**
- * Inventario (Sprint 9.3, solo lectura).
+ * Inventario (Sprint 9.3).
  *  - Existencias: productos del catálogo + GET /v1/inventory/stock/by-sku/:id por producto.
  *  - Por vencer: GET /v1/inventory/lots/expiring?withinDays=N (orden FEFO).
+ * Sprint 13: "+ Recibir" para ingresar mercancía (bodega y admin).
  */
 export default function InventoryScreen() {
   const [tab, setTab] = useState<'stock' | 'expiring'>('stock');
+  const router = useRouter();
+  const puedeRecibir = canManageInventory(useAuthStore((s) => s.user?.roles) ?? []);
   return (
     <>
-      <Stack.Screen options={{ title: 'Inventario' }} />
+      <Stack.Screen
+        options={{
+          title: 'Inventario',
+          headerRight: puedeRecibir
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Recibir mercancía"
+                  onPress={() => router.push('/(app)/inventario/recibir')}
+                  className="min-h-9 flex-row items-center rounded-full bg-white px-4"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">+ Recibir</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <View className="flex-1 bg-snow">
         <View className="mx-5 mt-4 flex-row rounded-2xl bg-ice-100 p-1">
           {(

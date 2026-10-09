@@ -62,7 +62,7 @@ const ALL: ModuleId[] = ['catalogo', 'inventario', 'produccion', 'ventas'];
  *  - catalogo   → catalog.controllers.ts
  *  - inventario → stock.controller.ts
  *  - produccion → production-orders.controller.ts
- *  - ventas     → sales-orders.controller.ts
+ *  - ventas     → sales-orders.controller.ts (clientes: customers.controller.ts)
  */
 const MODULE_READER_ROLES: Record<ModuleId, readonly string[]> = {
   catalogo: [
@@ -85,10 +85,25 @@ const MODULE_READER_ROLES: Record<ModuleId, readonly string[]> = {
   ],
   ventas: [
     'Tenant.Admin',
-    'Sales.Manager', 'Sales.Operator', 'Sales.Reader',
+    'Sales.Manager', 'Sales.Salesperson', 'Sales.Operator', 'Sales.Reader',
     'Inventory.Manager', 'Billing.Manager', 'Logistics.Manager',
   ],
 };
+
+/**
+ * Dentro de Ventas, los clientes los leen menos roles que los pedidos
+ * (customers.controller.ts no incluye Inventory.Manager): la pestaña Clientes
+ * solo se muestra a quien puede leerlos.
+ */
+const CUSTOMER_READER_ROLES: readonly string[] = [
+  'Tenant.Admin',
+  'Sales.Manager', 'Sales.Salesperson', 'Sales.Operator', 'Sales.Reader',
+  'Billing.Manager', 'Logistics.Manager',
+];
+
+export function canReadCustomers(roles: string[]): boolean {
+  return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
+}
 
 export function getVisibleModules(roles: string[]): ModuleDef[] {
   const userRoles = new Set(roles);

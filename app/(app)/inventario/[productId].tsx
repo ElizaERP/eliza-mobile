@@ -1,9 +1,14 @@
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
+import { canBlockLots, canManageInventory } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
+import { CancelarModal } from '@/components/ui/CancelarModal';
 import { useProduct } from '@/features/catalog/hooks';
-import { useLocationMap, useMovements, useStock } from '@/features/inventory/hooks';
+import type { StockByLot } from '@/features/inventory/api';
+import { useEstadoLote, useLocationMap, useMovements, useStock } from '@/features/inventory/hooks';
 import {
   LOTE_ESTADO,
   MOVIMIENTO,
@@ -15,8 +20,10 @@ import {
 } from '@/features/inventory/labels';
 
 /**
- * Existencias de un producto (Sprint 9.3, solo lectura):
- * totales, lotes en orden FEFO con sus ubicaciones y movimientos recientes.
+ * Existencias de un producto (Sprint 9.3): totales, lotes en orden FEFO con sus
+ * ubicaciones y movimientos recientes.
+ * Sprint 13: Recibir, y por ubicación Contar / Mover; por lote Bloquear / Liberar.
+ * Los botones se muestran según el rol; la autorización real la hace el backend.
  */
 export default function ProductStockScreen() {
   const { productId } = useLocalSearchParams<{ productId: string }>();
@@ -25,6 +32,28 @@ export default function ProductStockScreen() {
   const stock = useStock(id);
   const movements = useMovements(id);
   const { map: locations } = useLocationMap();
+  const router = useRouter();
+  const roles = useAuthStore((st) => st.user?.roles) ?? [];
+  const gestiona = canManageInventory(roles);
+  const bloquea = canBlockLots(roles);
+  const estadoLote = useEstadoLote();
+  const [bloqueando, setBloqueando] = useState<StockByLot | null>(null);
+
+  const liberar = (l: StockByLot) =>
+    Alert.alert('Liberar lote', `El lote ${l.codigoLote} vuelve a estar disponible para pedidos y producción.`, [
+      { text: 'Volver', style: 'cancel' },
+      {
+        text: 'Liberar',
+        onPress: () =>
+          estadoLote.mutate(
+            { loteId: l.loteId, accion: 'liberar' },
+            {
+              onSuccess: () => Alert.alert('Listo', `Lote ${l.codigoLote} liberado.`),
+              onError: (e) => Alert.alert('No se pudo liberar', (e as unknown as ApiError).message),
+            },
+          ),
+      },
+    ]);
 
   const s = stock.data;
   const allLots = s ? [...s.porLote].sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento)) : [];
@@ -37,7 +66,23 @@ export default function ProductStockScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Existencias' }} />
+      <Stack.Screen
+        options={{
+          title: 'Existencias',
+          headerRight: gestiona
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Recibir mercancía de este producto"
+                  onPress={() => router.push({ pathname: '/(app)/inventario/recibir', params: { productId: id } })}
+                  className="min-h-9 flex-row items-center rounded-full bg-white px-4"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">+ Recibir</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <ScrollView
         className="flex-1 bg-snow"
         contentContainerClassName="p-5 pb-10"
@@ -98,12 +143,58 @@ export default function ProductStockScreen() {
                       {l.cantidadReservada > 0 ? ` · Reservado ${qty(l.cantidadReservada)}` : ''}
                       {l.cantidadBloqueada > 0 ? ` · Bloqueado ${qty(l.cantidadBloqueada)}` : ''}
                     </Text>
-                    {l.ubicaciones.map((u) => (
-                      <Text key={u.locationId} className="mt-1 text-xs text-graphite-600">
-                        📍 {locations.get(u.locationId)?.label ?? 'Ubicación'} — {qty(u.cantidadDisponible)} disp.
-                        {u.cantidadReservada > 0 ? ` / ${qty(u.cantidadReservada)} res.` : ''}
-                      </Text>
-                    ))}
+                    {!l.reservable ? (
+                      <Text className="mt-1 text-xs text-warn">No se puede reservar para pedidos ni producción.</Text>
+                    ) : null}
+                    {l.ubicaciones.map((u) => {
+                      const fisico = u.cantidadDisponible + u.cantidadReservada + u.cantidadBloqueada;
+                      return (
+                        <View key={u.existenciaId} className="mt-2 flex-row items-center justify-between gap-2">
+                          <Text className="flex-1 text-xs text-graphite-600">
+                            📍 {locations.get(u.locationId)?.label ?? 'Ubicación'} — {qty(u.cantidadDisponible)} disp.
+                            {u.cantidadReservada > 0 ? ` / ${qty(u.cantidadReservada)} res.` : ''}
+                          </Text>
+                          {gestiona && fisico > 0 ? (
+                            <View className="flex-row gap-2">
+                              <Chico
+                                label="Contar"
+                                onPress={() =>
+                                  router.push({ pathname: '/(app)/inventario/contar', params: { productId: id, existenciaId: u.existenciaId } })
+                                }
+                              />
+                              {u.cantidadDisponible > 0 ? (
+                                <Chico
+                                  label="Mover"
+                                  onPress={() =>
+                                    router.push({ pathname: '/(app)/inventario/mover', params: { productId: id, existenciaId: u.existenciaId } })
+                                  }
+                                />
+                              ) : null}
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                    {bloquea && (l.estado === 'Disponible' || l.estado === 'Cuarentena') ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={estadoLote.isPending}
+                        onPress={() => setBloqueando(l)}
+                        className="mt-3 min-h-10 items-center justify-center rounded-xl border border-danger/40"
+                      >
+                        <Text className="text-sm font-semibold text-danger">Bloquear lote</Text>
+                      </Pressable>
+                    ) : null}
+                    {bloquea && (l.estado === 'Bloqueado' || l.estado === 'Cuarentena') ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={estadoLote.isPending}
+                        onPress={() => liberar(l)}
+                        className="mt-2 min-h-10 items-center justify-center rounded-xl border border-frost-700"
+                      >
+                        <Text className="text-sm font-semibold text-frost-900">Liberar lote</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 );
               })
@@ -154,7 +245,42 @@ export default function ProductStockScreen() {
           </Text>
         ) : null}
       </ScrollView>
+
+      {bloqueando ? (
+        <CancelarModal
+          titulo={`Bloquear lote ${bloqueando.codigoLote}`}
+          aviso={`No se podrá reservar para pedidos ni producción hasta liberarlo.${bloqueando.cantidadReservada > 0 ? ` Ojo: ya tiene ${qty(bloqueando.cantidadReservada)} reservadas; esas reservas siguen activas.` : ''}`}
+          placeholder="Ej.: muestra con humedad, cadena de frío rota"
+          boton="Bloquear"
+          enviando={estadoLote.isPending}
+          onClose={() => setBloqueando(null)}
+          onConfirm={(motivo) =>
+            estadoLote.mutate(
+              { loteId: bloqueando.loteId, accion: 'bloquear', motivo },
+              {
+                onSuccess: () => {
+                  setBloqueando(null);
+                  Alert.alert('Listo', `Lote ${bloqueando.codigoLote} bloqueado.`);
+                },
+                onError: (e) => Alert.alert('No se pudo bloquear', (e as unknown as ApiError).message),
+              },
+            )
+          }
+        />
+      ) : null}
     </>
+  );
+}
+
+function Chico({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="min-h-8 justify-center rounded-full border border-frost-700 bg-white px-3"
+    >
+      <Text className="text-xs font-semibold text-frost-900">{label}</Text>
+    </Pressable>
   );
 }
 

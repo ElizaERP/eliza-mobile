@@ -1,7 +1,14 @@
 import { useMemo } from 'react';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ajustarConteo,
+  bloquearLote,
   getStockByProduct,
+  liberarLote,
+  registrarEntrada,
+  transferir,
+  type EntradaBody,
+  type TransferenciaBody,
   listExpiringLots,
   listLocations,
   listMovements,
@@ -65,4 +72,44 @@ export function useLocationMap() {
   });
   const map = useMemo(() => new Map((query.data ?? []).map((l) => [l.id, l])), [query.data]);
   return { map, isLoading: query.isLoading };
+}
+
+// =====================================================================
+// Sprint 13: escritura. Toda acción refresca el inventario completo
+// (existencias, lotes por vencer y movimientos).
+// =====================================================================
+
+function useRefrescar() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['inventory'] });
+  };
+}
+
+export function useRegistrarEntrada() {
+  const refrescar = useRefrescar();
+  return useMutation({ mutationFn: (body: EntradaBody) => registrarEntrada(body), onSettled: refrescar });
+}
+
+export function useAjustarConteo() {
+  const refrescar = useRefrescar();
+  return useMutation({
+    mutationFn: ({ existenciaId, cantidadContada, motivo }: { existenciaId: string; cantidadContada: number; motivo: string }) =>
+      ajustarConteo(existenciaId, cantidadContada, motivo),
+    onSettled: refrescar,
+  });
+}
+
+export function useTransferir() {
+  const refrescar = useRefrescar();
+  return useMutation({ mutationFn: (body: TransferenciaBody) => transferir(body), onSettled: refrescar });
+}
+
+export function useEstadoLote() {
+  const refrescar = useRefrescar();
+  return useMutation({
+    mutationFn: ({ loteId, accion, motivo }: { loteId: string; accion: 'bloquear' | 'liberar'; motivo?: string }) =>
+      accion === 'bloquear' ? bloquearLote(loteId, (motivo ?? '').trim()) : liberarLote(loteId),
+    onSettled: refrescar,
+  });
 }

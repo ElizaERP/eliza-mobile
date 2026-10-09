@@ -154,6 +154,23 @@ export function canCancelProduction(roles: string[]): boolean {
   return roles.some((r) => PRODUCTION_WRITER_ROLES.includes(r) || r === 'Quality.Manager');
 }
 
+/**
+ * Recibir mercancía, contar (ajustar) y mover entre ubicaciones:
+ * WRITER_ROLES de stock.controller.ts (incluye a los operarios de bodega).
+ */
+const INVENTORY_WRITER_ROLES: readonly string[] = ['Tenant.Admin', 'Inventory.Manager', 'Inventory.Operator'];
+
+export function canManageInventory(roles: string[]): boolean {
+  return roles.some((r) => INVENTORY_WRITER_ROLES.includes(r));
+}
+
+/** Bloquear / liberar lotes: lots.controller.ts (gerente de inventario, calidad y admin). */
+const LOT_BLOCKER_ROLES: readonly string[] = ['Tenant.Admin', 'Inventory.Manager', 'Quality.Manager'];
+
+export function canBlockLots(roles: string[]): boolean {
+  return roles.some((r) => LOT_BLOCKER_ROLES.includes(r));
+}
+
 export function canReadCustomers(roles: string[]): boolean {
   return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
 }

@@ -3,7 +3,7 @@ import { apiClient } from '@/core/http/apiClient';
 /**
  * Cliente de Inventario — contrato de eliza-foundation
  * (src/contexts/inventory/application/dto/inventory.views.ts).
- * Sprint 9.3: solo lectura.
+ * Sprint 9.3: lectura. Sprint 13: recibir mercancía, contar, mover y bloquear lotes.
  */
 
 export type EstadoLote = 'Disponible' | 'Bloqueado' | 'Cuarentena' | 'Vencido';
@@ -21,14 +21,25 @@ export interface StockByLot {
   codigoLote: string;
   fechaVencimiento: string;
   estado: EstadoLote;
+  /** Disponible y sin vencer: los pedidos y órdenes pueden reservar de este lote. */
+  reservable: boolean;
   cantidadDisponible: number;
   cantidadReservada: number;
   cantidadBloqueada: number;
-  ubicaciones: { locationId: string; cantidadDisponible: number; cantidadReservada: number }[];
+  ubicaciones: StockUbicacion[];
+}
+
+export interface StockUbicacion {
+  existenciaId: string;
+  locationId: string;
+  cantidadDisponible: number;
+  cantidadReservada: number;
+  cantidadBloqueada: number;
 }
 
 export interface StockSummary {
   productId: string;
+  /** Solo lo reservable; el disponible de lotes bloqueados o vencidos va en totalBloqueado. */
   totalDisponible: number;
   totalReservado: number;
   totalBloqueado: number;
@@ -114,4 +125,54 @@ export async function listLocations(warehouseId: string): Promise<Location[]> {
     `/v1/inventory/warehouses/${warehouseId}/locations`,
   );
   return data;
+}
+
+// =====================================================================
+// Sprint 13: escritura
+// =====================================================================
+
+export type OrigenEntrada = 'Purchase' | 'Manual';
+
+export interface EntradaBody {
+  productId: string;
+  codigoLote: string;
+  cantidad: number;
+  locationId: string;
+  /** AAAA-MM-DD */
+  fechaVencimiento: string;
+  origenTipo: OrigenEntrada;
+  /** Factura/remisión del proveedor, o referencia de la entrada manual. */
+  documento: string;
+  notas?: string;
+}
+
+/** Recibir mercancía: crea el lote y lo ingresa en la ubicación en un solo paso. */
+export async function registrarEntrada(body: EntradaBody): Promise<{ lote: Lote; movimientoId: string }> {
+  const { data } = await apiClient.post<{ lote: Lote; movimientoId: string }>('/v1/inventory/stock/receipts', body);
+  return data;
+}
+
+/** Ajuste por conteo físico: el servidor calcula la diferencia contra el sistema. */
+export async function ajustarConteo(existenciaId: string, cantidadContada: number, motivo: string): Promise<void> {
+  await apiClient.post(`/v1/inventory/stock/adjust/${existenciaId}`, { cantidadContada, motivo });
+}
+
+export interface TransferenciaBody {
+  productId: string;
+  loteId: string;
+  origenLocationId: string;
+  destinoLocationId: string;
+  cantidad: number;
+}
+
+export async function transferir(body: TransferenciaBody): Promise<void> {
+  await apiClient.post('/v1/inventory/stock/transfer', body);
+}
+
+export async function bloquearLote(loteId: string, reason: string): Promise<void> {
+  await apiClient.post(`/v1/inventory/lots/${loteId}/block`, { reason });
+}
+
+export async function liberarLote(loteId: string): Promise<void> {
+  await apiClient.post(`/v1/inventory/lots/${loteId}/release`);
 }

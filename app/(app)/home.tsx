@@ -16,6 +16,7 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: 'ELIZA',
+          headerBackVisible: false,
           headerRight: () => (
             <Pressable
               accessibilityRole="button"
@@ -37,7 +38,7 @@ export default function HomeScreen() {
           <View className="mt-12 items-center rounded-2xl bg-ice-50 p-8">
             <Text className="text-center text-base text-graphite-600">
               Tu usuario no tiene módulos asignados. Pedile al administrador del tenant que te
-              asigne un rol operativo.
+              asigne un rol operativo (por ejemplo Inventory.Operator o Sales.Manager).
             </Text>
           </View>
         ) : (

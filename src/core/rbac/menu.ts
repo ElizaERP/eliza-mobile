@@ -171,6 +171,20 @@ export function canBlockLots(roles: string[]): boolean {
   return roles.some((r) => LOT_BLOCKER_ROLES.includes(r));
 }
 
+/** Crear, editar, activar, descontinuar productos y su receta: WRITER_ROLES de catalog.controllers.ts. */
+const CATALOG_WRITER_ROLES: readonly string[] = ['Tenant.Admin', 'Manufacturing.Manager', 'Inventory.Manager'];
+
+export function canManageCatalog(roles: string[]): boolean {
+  return roles.some((r) => CATALOG_WRITER_ROLES.includes(r));
+}
+
+/** Precio de lista: PRICE_SETTER_ROLES de catalog.controllers.ts (decisión comercial). */
+const PRICE_SETTER_ROLES: readonly string[] = ['Tenant.Admin', 'Sales.Manager'];
+
+export function canSetPrices(roles: string[]): boolean {
+  return roles.some((r) => PRICE_SETTER_ROLES.includes(r));
+}
+
 export function canReadCustomers(roles: string[]): boolean {
   return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
 }

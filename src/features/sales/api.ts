@@ -3,7 +3,9 @@ import { apiClient } from '@/core/http/apiClient';
 /**
  * Cliente de Ventas — contrato de eliza-foundation
  * (src/contexts/sales/application/dto/sales.views.ts).
- * Sprint 9.5: solo lectura.
+ * Sprint 9.5: lectura. Sprint 10: crear pedidos y clientes.
+ * Sprint 11: avanzar el pedido (confirmar → reservar → despachar → cerrar, o cancelar),
+ * quitar/agregar líneas en Borrador y gestionar clientes.
  */
 
 export type EstadoCliente = 'Activo' | 'Inactivo' | 'Suspendido';
@@ -171,6 +173,73 @@ export function nuevoCodigoPedido(now = new Date()): string {
   const ts = `${String(now.getFullYear()).slice(2)}${p(now.getMonth() + 1)}${p(now.getDate())}${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
   const rnd = Math.random().toString(36).slice(2, 5).toUpperCase().padEnd(3, '0');
   return `PV-M-${ts}-${rnd}`;
+}
+
+// ---------------------------------------------------------------------
+// Sprint 11: ciclo de vida del pedido
+// ---------------------------------------------------------------------
+
+export async function confirmSalesOrder(id: string): Promise<Pedido> {
+  const { data } = await apiClient.post<Pedido>(`/v1/sales/orders/${id}/confirm`);
+  return data;
+}
+
+/** Reserva FEFO de todas las líneas (todo o nada). 409 sales.insufficient_stock si alguna no alcanza. */
+export async function reserveSalesOrder(id: string): Promise<{ ordenId: string; lineasReservadas: number }> {
+  const { data } = await apiClient.post<{ ordenId: string; lineasReservadas: number }>(`/v1/sales/orders/${id}/reserve`);
+  return data;
+}
+
+/** Descuenta del inventario el stock reservado. No se puede deshacer. */
+export async function dispatchSalesOrder(id: string): Promise<{ ordenId: string; totalDespachado: number }> {
+  const { data } = await apiClient.post<{ ordenId: string; totalDespachado: number }>(`/v1/sales/orders/${id}/dispatch`);
+  return data;
+}
+
+/** Cancela (libera las reservas si las había). Motivo de 3 a 500 caracteres. */
+export async function cancelSalesOrder(id: string, motivo: string): Promise<Pedido> {
+  const { data } = await apiClient.post<Pedido>(`/v1/sales/orders/${id}/cancel`, { motivo });
+  return data;
+}
+
+export async function closeSalesOrder(id: string): Promise<Pedido> {
+  const { data } = await apiClient.post<Pedido>(`/v1/sales/orders/${id}/close`);
+  return data;
+}
+
+export async function removeSalesOrderLine(ordenId: string, lineaId: string): Promise<Pedido> {
+  const { data } = await apiClient.delete<Pedido>(`/v1/sales/orders/${ordenId}/lines/${lineaId}`);
+  return data;
+}
+
+// ---------------------------------------------------------------------
+// Sprint 11: gestión de clientes (gerente de ventas / admin)
+// ---------------------------------------------------------------------
+
+export interface EditarClienteBody {
+  razonSocial?: string;
+  nombreComercial?: string;
+  condicionesPago?: CondicionesPago;
+  direccionFiscal?: { direccion: string; ciudad: string; departamento: string; telefono?: string; notas?: string };
+  contactoNombre?: string;
+  contactoTelefono?: string;
+  contactoEmail?: string;
+  notas?: string;
+}
+
+export async function updateCustomer(id: string, body: EditarClienteBody): Promise<Cliente> {
+  const { data } = await apiClient.patch<Cliente>(`/v1/sales/customers/${id}`, body);
+  return data;
+}
+
+export async function suspendCustomer(id: string): Promise<Cliente> {
+  const { data } = await apiClient.post<Cliente>(`/v1/sales/customers/${id}/suspend`);
+  return data;
+}
+
+export async function activateCustomer(id: string): Promise<Cliente> {
+  const { data } = await apiClient.post<Cliente>(`/v1/sales/customers/${id}/activate`);
+  return data;
 }
 
 export async function getSalesOrder(id: string): Promise<Pedido> {

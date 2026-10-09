@@ -1,19 +1,26 @@
 import { useMemo } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
+import { canEditCustomers, canSuspendCustomers } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import { Card, Row, Section } from '@/components/ui/Section';
-import { useCustomer, useSalesOrderList } from '@/features/sales/hooks';
+import { useCustomer, useEstadoCliente, useSalesOrderList } from '@/features/sales/hooks';
 import { CONDICIONES_PAGO, ESTADO_CLIENTE, direccionTexto } from '@/features/sales/labels';
 import { PedidoRow } from '@/features/sales/PedidoRow';
 
 /**
- * Ficha de un cliente (Sprint 9.5, solo lectura): datos, direcciones, contacto
- * y sus pedidos más recientes.
+ * Ficha de un cliente: datos, direcciones, contacto y sus pedidos más recientes.
+ * Sprint 11: el gerente de ventas / admin lo edita (incluido el crédito) y lo suspende o reactiva.
  */
 export default function CustomerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const roles = useAuthStore((s) => s.user?.roles) ?? [];
+  const puedeEditar = canEditCustomers(roles);
+  const puedeSuspender = canSuspendCustomers(roles);
+  const estado = useEstadoCliente(id ?? '');
   const customer = useCustomer(id ?? '');
   const orders = useSalesOrderList('all', id);
   const c = customer.data;
@@ -24,7 +31,23 @@ export default function CustomerScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Cliente' }} />
+      <Stack.Screen
+        options={{
+          title: 'Cliente',
+          headerRight: puedeEditar
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Editar cliente"
+                  onPress={() => router.push({ pathname: '/(app)/ventas/cliente/editar/[id]', params: { id: id ?? '' } })}
+                  className="min-h-9 flex-row items-center rounded-full bg-white px-4"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">Editar</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <ScrollView
         className="flex-1 bg-snow"
         contentContainerClassName="p-5 pb-10"
@@ -60,6 +83,42 @@ export default function CustomerScreen() {
               <Badge label={ESTADO_CLIENTE[c.estado].label} tone={ESTADO_CLIENTE[c.estado].tone} />
               <Badge label={CONDICIONES_PAGO[c.condicionesPago]} tone="info" />
             </View>
+
+            {puedeSuspender && c.estado !== 'Inactivo' ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={estado.isPending}
+                onPress={() => {
+                  const suspender = c.estado === 'Activo';
+                  Alert.alert(
+                    suspender ? 'Suspender cliente' : 'Reactivar cliente',
+                    suspender
+                      ? `${c.razonSocial} no podrá recibir pedidos nuevos hasta que lo reactives.`
+                      : `${c.razonSocial} vuelve a poder recibir pedidos.`,
+                    [
+                      { text: 'Volver', style: 'cancel' },
+                      {
+                        text: suspender ? 'Suspender' : 'Reactivar',
+                        style: suspender ? 'destructive' : 'default',
+                        onPress: () =>
+                          estado.mutate(suspender ? 'suspender' : 'activar', {
+                            onError: (e) => Alert.alert('No se pudo cambiar el estado', (e as unknown as ApiError).message),
+                          }),
+                      },
+                    ],
+                  );
+                }}
+                className={`mt-4 min-h-11 items-center justify-center rounded-2xl border bg-white ${c.estado === 'Activo' ? 'border-danger/40' : 'border-ok/40'}`}
+              >
+                {estado.isPending ? (
+                  <ActivityIndicator color="#0B3A53" />
+                ) : (
+                  <Text className={`text-sm font-semibold ${c.estado === 'Activo' ? 'text-danger' : 'text-ok'}`}>
+                    {c.estado === 'Activo' ? 'Suspender cliente' : 'Reactivar cliente'}
+                  </Text>
+                )}
+              </Pressable>
+            ) : null}
 
             <Section title="Direcciones">
               <Card>

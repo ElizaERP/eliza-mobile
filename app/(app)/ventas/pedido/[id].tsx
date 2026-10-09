@@ -1,21 +1,42 @@
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
+import { canCreateSalesOrders } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import { Card, Row, Section } from '@/components/ui/Section';
 import { formatDateTime } from '@/features/inventory/labels';
-import { useSalesOrder } from '@/features/sales/hooks';
+import { AccionesPedido } from '@/features/sales/AccionesPedido';
+import { useQuitarLinea, useSalesOrder } from '@/features/sales/hooks';
 import { CONDICIONES_PAGO, ESTADO_PEDIDO, direccionTexto, money } from '@/features/sales/labels';
 
 /**
- * Detalle de un pedido de venta (Sprint 9.5, solo lectura):
- * cliente, estado y fechas, entrega, líneas con IVA y totales.
+ * Detalle de un pedido de venta: cliente, estado y fechas, entrega, líneas con IVA y totales.
+ * Sprint 11: siguiente paso del ciclo (confirmar → reservar → despachar → cerrar, o cancelar)
+ * y, en Borrador, quitar o agregar productos.
  */
 export default function SalesOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const roles = useAuthStore((s) => s.user?.roles) ?? [];
   const order = useSalesOrder(id ?? '');
+  const quitar = useQuitarLinea(id ?? '');
   const o = order.data;
   const err = order.error as ApiError | null;
+  const editable = o?.estado === 'Borrador' && canCreateSalesOrders(roles);
+
+  const confirmarQuitar = (lineaId: string, nombre: string) =>
+    Alert.alert('Quitar producto', `¿Quitar ${nombre} del pedido?`, [
+      { text: 'Volver', style: 'cancel' },
+      {
+        text: 'Quitar',
+        style: 'destructive',
+        onPress: () =>
+          quitar.mutate(lineaId, {
+            onError: (e) => Alert.alert('No se pudo quitar', (e as unknown as ApiError).message),
+          }),
+      },
+    ]);
 
   return (
     <>
@@ -63,6 +84,8 @@ export default function SalesOrderScreen() {
               </View>
             </Card>
 
+            <AccionesPedido pedido={o} roles={roles} />
+
             <Section title={o.lineas.length === 1 ? '1 línea' : `${o.lineas.length} líneas`}>
               {o.lineas.length === 0 ? (
                 <Text className="text-sm text-graphite-600">El pedido todavía no tiene líneas.</Text>
@@ -83,9 +106,29 @@ export default function SalesOrderScreen() {
                       IVA {l.tasaIva.toLocaleString('es-CO')} %: {money(l.iva)}
                     </Text>
                     {l.notas ? <Text className="mt-1 text-xs text-graphite-600">{l.notas}</Text> : null}
+                    {editable ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Quitar ${l.productName}`}
+                        disabled={quitar.isPending}
+                        onPress={() => confirmarQuitar(l.id, l.productName)}
+                        className="mt-2 self-end"
+                      >
+                        <Text className="text-sm font-medium text-danger">Quitar</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ))
               )}
+              {editable ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push({ pathname: '/(app)/ventas/agregar/[id]', params: { id: o.id } })}
+                  className="min-h-11 flex-row items-center justify-center rounded-2xl border border-dashed border-frost-700 bg-white"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">+ Agregar productos</Text>
+                </Pressable>
+              ) : null}
             </Section>
 
             <Section title="Fechas">

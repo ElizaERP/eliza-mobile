@@ -9,7 +9,7 @@ sub-sprints.
 ## Stack
 | Capa | Tecnología |
 |---|---|
-| Runtime | Expo SDK 53 · React Native · TypeScript strict |
+| Runtime | Expo SDK 57 · React Native 0.86 · TypeScript 6 strict |
 | Navegación | Expo Router (file-based) |
 | Server state | TanStack Query |
 | Estado de sesión/UI | Zustand |
@@ -34,6 +34,17 @@ src/core/
 src/components/ui/      # Button, Screen, InfoRow
 keycloak/               # Fase 0: provisioning + export del realm
 ```
+
+## Conectar al ambiente DEV (tailnet)
+
+El backend DEV corre en una VM de OCI publicada solo dentro de la tailnet de Tailscale
+(`https://eliza-dev.taile05b63.ts.net`), con HTTPS válido.
+
+1. Instalá **Tailscale** en el teléfono, iniciá sesión con la misma cuenta y dejalo **activo**.
+2. Instalá **Expo Go** (SDK 57).
+3. En la PC: `copy .env.example .env` (ya trae las URLs de DEV), `npm install`, `npm run start:clear`.
+4. Escaneá el QR con Expo Go → **Iniciar sesión** → usuario de Keycloak del realm `eliza`.
+5. En **Mi perfil**, la tarjeta *Conexión con el backend* debe mostrar ✅ en "API lista" y "Sesión en la API".
 
 ## Quickstart
 Ver **TESTING-MOBILE-9.1.md** para el paso a paso completo (Fase 0 de

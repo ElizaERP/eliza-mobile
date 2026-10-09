@@ -2,8 +2,13 @@
  * Menú por rol — el JWT trae los roles del usuario (claim "roles" /
  * realm_access.roles) y este mapping decide qué módulos del MVP ve.
  *
- * Módulos del MVP móvil (Sprint 9): los 4 BCs operativos + Auth.
- * La administración de tenants/usuarios NO vive aquí (panel web, Sprint 11).
+ * Los nombres son los del catálogo del backend (formato `<Scope>.<Function>`,
+ * eliza-foundation: src/contexts/iam/domain/role-catalog.ts). Cada módulo se
+ * muestra si el usuario tiene AL MENOS UN rol de LECTURA del controller que lo
+ * respalda; la autorización real la sigue haciendo el backend en cada endpoint.
+ *
+ * Los roles Platform.* NO dan módulos aquí: la administración de la plataforma
+ * vive en el panel web (Sprint 11), no en la app móvil.
  */
 
 export type ModuleId = 'catalogo' | 'inventario' | 'produccion' | 'ventas';
@@ -52,28 +57,43 @@ export const MODULES: Record<ModuleId, ModuleDef> = {
 const ALL: ModuleId[] = ['catalogo', 'inventario', 'produccion', 'ventas'];
 
 /**
- * rol (Keycloak realm role) → módulos visibles.
- * Roles desconocidos no aportan módulos; el resultado es la unión
- * de todos los roles del usuario.
+ * módulo → roles que pueden VER ese módulo (lectura en el backend).
+ * Fuente: READER_ROLES de cada controller, sin los Platform.*:
+ *  - catalogo   → catalog.controllers.ts
+ *  - inventario → stock.controller.ts
+ *  - produccion → production-orders.controller.ts
+ *  - ventas     → sales-orders.controller.ts
  */
-const ROLE_MODULES: Record<string, ModuleId[]> = {
-  'tenant-admin': ALL,
-  'jefe-produccion': ['produccion', 'inventario', 'catalogo'],
-  'jefe-inventario': ['inventario', 'catalogo'],
-  'jefe-calidad': ['inventario', 'produccion', 'catalogo'],
-  'jefe-ventas': ['ventas', 'catalogo'],
-  'operario-planta': ['produccion', 'inventario'],
-  'operario-logistica': ['inventario'],
-  vendedor: ['ventas', 'catalogo'],
+const MODULE_READER_ROLES: Record<ModuleId, readonly string[]> = {
+  catalogo: [
+    'Tenant.Admin', 'Tenant.Viewer',
+    'Manufacturing.Manager', 'Manufacturing.Supervisor', 'Manufacturing.Operator',
+    'Inventory.Manager', 'Inventory.Operator', 'Inventory.Reader',
+    'Sales.Manager', 'Sales.Salesperson',
+    'Quality.Manager', 'Quality.Inspector',
+    'Procurement.Manager', 'Procurement.Buyer',
+  ],
+  inventario: [
+    'Tenant.Admin',
+    'Inventory.Manager', 'Inventory.Operator', 'Inventory.Reader',
+    'Manufacturing.Manager', 'Sales.Manager',
+  ],
+  produccion: [
+    'Tenant.Admin',
+    'Manufacturing.Manager', 'Manufacturing.Operator', 'Manufacturing.Reader',
+    'Inventory.Manager', 'Quality.Manager', 'Planning.Manager',
+  ],
+  ventas: [
+    'Tenant.Admin',
+    'Sales.Manager', 'Sales.Operator', 'Sales.Reader',
+    'Inventory.Manager', 'Billing.Manager', 'Logistics.Manager',
+  ],
 };
 
 export function getVisibleModules(roles: string[]): ModuleDef[] {
-  const ids = new Set<ModuleId>();
-  for (const role of roles) {
-    for (const moduleId of ROLE_MODULES[role] ?? []) {
-      ids.add(moduleId);
-    }
-  }
+  const userRoles = new Set(roles);
   // Orden estable según definición del MVP
-  return ALL.filter((id) => ids.has(id)).map((id) => MODULES[id]);
+  return ALL.filter((id) => MODULE_READER_ROLES[id].some((r) => userRoles.has(r))).map(
+    (id) => MODULES[id],
+  );
 }

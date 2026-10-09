@@ -16,6 +16,7 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: 'ELIZA',
+          headerBackVisible: false,
           headerRight: () => (
             <Pressable
               accessibilityRole="button"
@@ -37,7 +38,7 @@ export default function HomeScreen() {
           <View className="mt-12 items-center rounded-2xl bg-ice-50 p-8">
             <Text className="text-center text-base text-graphite-600">
               Tu usuario no tiene módulos asignados. Pedile al administrador del tenant que te
-              asigne un rol operativo.
+              asigne un rol operativo (por ejemplo Inventory.Operator o Sales.Manager).
             </Text>
           </View>
         ) : (
@@ -61,7 +62,13 @@ function ModuleCard({ module }: { module: ModuleDef }) {
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => router.push({ pathname: '/(app)/module/[id]', params: { id: module.id } })}
+      onPress={() =>
+        module.id === 'catalogo'
+          ? router.push('/(app)/catalogo')
+          : module.id === 'inventario'
+            ? router.push('/(app)/inventario')
+            : router.push({ pathname: '/(app)/module/[id]', params: { id: module.id } })
+      }
       className="min-h-36 flex-1 justify-between rounded-2xl border border-ice-100 bg-white p-4 active:bg-ice-50"
     >
       <Text className="text-3xl">{module.icon}</Text>

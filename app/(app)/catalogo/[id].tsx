@@ -4,7 +4,7 @@ import type { ApiError } from '@/core/http/apiClient';
 import { Badge } from '@/components/ui/Badge';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { useCategoryMap, useProduct, useProductsByIds, useUomMap } from '@/features/catalog/hooks';
-import { STATUS_LABEL, TYPE_LABEL, formatGrams, formatTempRange } from '@/features/catalog/labels';
+import { STATUS_LABEL, TYPE_LABEL, formatGrams, formatSalePrice, formatTempRange } from '@/features/catalog/labels';
 
 /**
  * Catálogo — detalle de producto (Sprint 9.2, solo lectura).
@@ -61,6 +61,7 @@ export default function ProductDetailScreen() {
     ['Peso bruto', formatGrams(p.grossWeightGrams)],
     ['Vida útil', p.expiryDays !== null ? `${p.expiryDays} días` : null],
     ['Almacenamiento', formatTempRange(p.storageTempMinC, p.storageTempMaxC)],
+    ['Precio de lista', formatSalePrice(p.salePrice) ?? 'Sin precio de lista'],
     ['IVA', p.taxRate !== null ? `${p.taxRate} %` : null],
   ];
 

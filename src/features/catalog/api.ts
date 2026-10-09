@@ -35,6 +35,8 @@ export interface Product {
   storageTempMinC: number | null;
   storageTempMaxC: number | null;
   taxRate: number | null;
+  /** Precio de lista en COP, sin IVA (null = sin precio). Backend 839022b. */
+  salePrice: number | null;
   imageUrl: string | null;
   isControlled: boolean;
   components: BOMComponent[];

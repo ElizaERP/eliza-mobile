@@ -101,6 +101,15 @@ const CUSTOMER_READER_ROLES: readonly string[] = [
   'Billing.Manager', 'Logistics.Manager',
 ];
 
+/** Pueden armar pedidos en Borrador (ORDER_AUTHOR_ROLES de sales-orders.controller.ts). */
+const ORDER_AUTHOR_ROLES: readonly string[] = [
+  'Tenant.Admin', 'Sales.Manager', 'Sales.Operator', 'Sales.Salesperson',
+];
+
+export function canCreateSalesOrders(roles: string[]): boolean {
+  return roles.some((r) => ORDER_AUTHOR_ROLES.includes(r));
+}
+
 export function canReadCustomers(roles: string[]): boolean {
   return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
 }

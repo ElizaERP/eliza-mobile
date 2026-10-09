@@ -8,6 +8,7 @@ import {
   searchProducts,
   type CategoryNode,
   type ProductStatus,
+  type ProductType,
 } from './api';
 
 const PAGE_SIZE = 25;
@@ -16,18 +17,18 @@ const REFERENCE_STALE_MS = 10 * 60_000;
 
 export const catalogKeys = {
   all: ['catalog'] as const,
-  list: (status: ProductStatus[]) => ['catalog', 'products', 'list', status] as const,
+  list: (status: ProductStatus[], type: ProductType[]) => ['catalog', 'products', 'list', status, type] as const,
   search: (q: string) => ['catalog', 'products', 'search', q] as const,
   product: (id: string) => ['catalog', 'products', 'detail', id] as const,
   categories: ['catalog', 'categories'] as const,
   uoms: ['catalog', 'uoms'] as const,
 };
 
-/** Lista paginada (scroll infinito) filtrada por estado. */
-export function useProductList(status: ProductStatus[], enabled: boolean) {
+/** Lista paginada (scroll infinito) filtrada por estado y tipo. */
+export function useProductList(status: ProductStatus[], enabled: boolean, type: ProductType[] = []) {
   return useInfiniteQuery({
-    queryKey: catalogKeys.list(status),
-    queryFn: ({ pageParam }) => listProducts({ status, page: pageParam, pageSize: PAGE_SIZE }),
+    queryKey: catalogKeys.list(status, type),
+    queryFn: ({ pageParam }) => listProducts({ status, type, page: pageParam, pageSize: PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     enabled,

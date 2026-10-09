@@ -8,6 +8,7 @@ import { useOrder } from '@/features/production/hooks';
 import { ESTADO_ORDEN, PRIORIDAD, num, progress } from '@/features/production/labels';
 import { formatDate, formatDateTime } from '@/features/inventory/labels';
 import { useLocationMap } from '@/features/inventory/hooks';
+import { useProductsByIds } from '@/features/catalog/hooks';
 
 /**
  * Detalle de una orden de producción (Sprint 9.4, solo lectura):
@@ -20,6 +21,13 @@ export default function ProductionOrderScreen() {
   const { map: locations } = useLocationMap();
   const o = order.data;
   const err = order.error as ApiError | null;
+  const legacyIds = (o?.componentes ?? [])
+    .filter((c) => c.productName === c.productId || c.productCode === c.productId)
+    .map((c) => c.productId);
+  const legacyQueries = useProductsByIds(legacyIds);
+  const componentProducts = new Map(
+    legacyIds.map((pid, i) => [pid, legacyQueries[i]?.data] as const).filter(([, p]) => p !== undefined),
+  );
 
   const consumidoPor = new Map<string, number>();
   for (const c of o?.consumos ?? []) consumidoPor.set(c.productId, (consumidoPor.get(c.productId) ?? 0) + c.cantidad);
@@ -101,19 +109,35 @@ export default function ProductionOrderScreen() {
               ) : (
                 o.componentes.map((c, i) => {
                   const consumido = consumidoPor.get(c.productId) ?? 0;
+                  // Órdenes antiguas: el snapshot guardó el id en lugar del código/nombre → se toma del Catálogo
+                  const legacy = c.productName === c.productId || c.productCode === c.productId;
+                  const catalogProduct = legacy ? componentProducts.get(c.productId) : undefined;
+                  const name = legacy ? (catalogProduct?.name ?? 'Materia prima') : c.productName;
+                  const code = legacy ? (catalogProduct?.code ?? '') : c.productCode;
+                  const sinCantidad = !Number.isFinite(c.cantidadTotalRequerida);
                   return (
                     <View key={`${c.productId}-${i}`} className="mb-3 rounded-2xl border border-ice-100 bg-white p-4">
-                      <Text className="text-base font-semibold text-graphite-900">{c.productName}</Text>
+                      <Text className="text-base font-semibold text-graphite-900">{name}</Text>
                       <Text className="text-xs text-graphite-400">
-                        {c.productCode} · {num(c.cantidadPorUnidad)} {c.unidadMedida} por unidad
+                        {[code, sinCantidad ? null : `${num(c.cantidadPorUnidad)} ${c.unidadMedida} por unidad`]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </Text>
-                      <View className="mb-1 mt-3 flex-row justify-between">
-                        <Text className="text-xs text-graphite-600">
-                          Consumido <Text className="font-bold text-graphite-900">{num(consumido)}</Text> de{' '}
-                          {num(c.cantidadTotalRequerida)} {c.unidadMedida}
+                      {sinCantidad ? (
+                        <Text className="mt-3 text-xs text-graphite-600">
+                          Cantidad no registrada: la orden se creó antes de corregir la copia de la receta.
                         </Text>
-                      </View>
-                      <ProgressBar value={progress(consumido, c.cantidadTotalRequerida)} muted={muted} />
+                      ) : (
+                        <>
+                          <View className="mb-1 mt-3 flex-row justify-between">
+                            <Text className="text-xs text-graphite-600">
+                              Consumido <Text className="font-bold text-graphite-900">{num(consumido)}</Text> de{' '}
+                              {num(c.cantidadTotalRequerida)} {c.unidadMedida}
+                            </Text>
+                          </View>
+                          <ProgressBar value={progress(consumido, c.cantidadTotalRequerida)} muted={muted} />
+                        </>
+                      )}
                     </View>
                   );
                 })

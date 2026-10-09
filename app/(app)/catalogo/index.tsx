@@ -13,7 +13,8 @@ import type { ApiError } from '@/core/http/apiClient';
 import { Badge } from '@/components/ui/Badge';
 import type { Product } from '@/features/catalog/api';
 import { useCategoryMap, useProductList, useProductSearch } from '@/features/catalog/hooks';
-import { STATUS_FILTERS, STATUS_LABEL, TYPE_LABEL, formatGrams } from '@/features/catalog/labels';
+import { STATUS_FILTERS, STATUS_LABEL, TYPE_FILTERS, TYPE_LABEL, formatGrams } from '@/features/catalog/labels';
+import { FilterChips } from '@/components/ui/FilterChips';
 
 /**
  * Catálogo — lista de productos (Sprint 9.2, solo lectura).
@@ -23,6 +24,7 @@ import { STATUS_FILTERS, STATUS_LABEL, TYPE_LABEL, formatGrams } from '@/feature
  */
 export default function CatalogListScreen() {
   const [filterKey, setFilterKey] = useState('all');
+  const [typeKey, setTypeKey] = useState('all');
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
 
@@ -33,19 +35,24 @@ export default function CatalogListScreen() {
   }, [text]);
 
   const filter = STATUS_FILTERS.find((f) => f.key === filterKey) ?? STATUS_FILTERS[0]!;
+  const typeFilter = TYPE_FILTERS.find((f) => f.key === typeKey) ?? TYPE_FILTERS[0]!;
   const searching = q.length >= 2;
 
-  const list = useProductList(filter.status, !searching);
+  const list = useProductList(filter.status, !searching, typeFilter.types);
   const search = useProductSearch(q);
   const { map: categories } = useCategoryMap();
 
   const items: Product[] = useMemo(() => {
     if (searching) {
       const found = search.data ?? [];
-      return filter.status.length ? found.filter((p) => filter.status.includes(p.status)) : found;
+      return found.filter(
+        (p) =>
+          (!filter.status.length || filter.status.includes(p.status)) &&
+          (!typeFilter.types.length || typeFilter.types.includes(p.type)),
+      );
     }
     return list.data?.pages.flatMap((p) => p.items) ?? [];
-  }, [searching, search.data, list.data, filter.status]);
+  }, [searching, search.data, list.data, filter.status, typeFilter.types]);
 
   const active = searching ? search : list;
   const total = searching ? items.length : (list.data?.pages[0]?.total ?? 0);
@@ -59,7 +66,7 @@ export default function CatalogListScreen() {
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Buscá por nombre, código, SKU o código de barras"
+            placeholder="Buscar por nombre, código, SKU o código de barras"
             placeholderTextColor="#8295A3"
             autoCorrect={false}
             autoCapitalize="none"
@@ -84,6 +91,9 @@ export default function CatalogListScreen() {
                 </Pressable>
               );
             })}
+          </View>
+          <View className="mt-2">
+            <FilterChips options={TYPE_FILTERS} value={typeKey} onChange={setTypeKey} small />
           </View>
           <Text className="mt-3 text-xs text-graphite-400">
             {active.isLoading ? 'Cargando…' : `${total} producto${total === 1 ? '' : 's'}`}
@@ -124,7 +134,7 @@ export default function CatalogListScreen() {
               <View className="mt-12 items-center">
                 <Text className="text-4xl">🔎</Text>
                 <Text className="mt-3 text-center text-sm text-graphite-600">
-                  {searching ? `Nada coincide con “${q}”.` : 'No hay productos con este filtro.'}
+                  {searching ? `Nada coincide con “${q}”.` : 'No hay productos con estos filtros.'}
                 </Text>
               </View>
             ) : null

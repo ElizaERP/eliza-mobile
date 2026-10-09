@@ -15,6 +15,8 @@ import type { Product } from '@/features/catalog/api';
 import { useProductList, useProductsByIds } from '@/features/catalog/hooks';
 import type { Lote, StockSummary } from '@/features/inventory/api';
 import { useExpiringLots, useStocks } from '@/features/inventory/hooks';
+import { TYPE_FILTERS, TYPE_LABEL } from '@/features/catalog/labels';
+import { FilterChips } from '@/components/ui/FilterChips';
 import {
   EXPIRY_WINDOWS,
   LOTE_ESTADO,
@@ -82,7 +84,9 @@ function ErrorBox({ title, error }: { title: string; error: ApiError }) {
 // ---------------------------------------------------------------------
 function StockTab() {
   const [text, setText] = useState('');
-  const list = useProductList([], true);
+  const [typeKey, setTypeKey] = useState('all');
+  const typeFilter = TYPE_FILTERS.find((f) => f.key === typeKey) ?? TYPE_FILTERS[0]!;
+  const list = useProductList([], true, typeFilter.types);
   const products = useMemo(() => {
     const all = (list.data?.pages.flatMap((p) => p.items) ?? []).filter((p) => p.type !== 'Service');
     const t = text.trim().toLowerCase();
@@ -98,15 +102,20 @@ function StockTab() {
       keyExtractor={(p) => p.id}
       contentContainerClassName="gap-3 px-5 pb-8 pt-4"
       ListHeaderComponent={
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Filtrá por nombre o código"
-          placeholderTextColor="#8295A3"
-          autoCorrect={false}
-          autoCapitalize="none"
-          className="mb-1 min-h-12 rounded-2xl border border-ice-100 bg-white px-4 text-base text-graphite-900"
-        />
+        <View className="mb-1">
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder="Filtrar por nombre o código"
+            placeholderTextColor="#8295A3"
+            autoCorrect={false}
+            autoCapitalize="none"
+            className="min-h-12 rounded-2xl border border-ice-100 bg-white px-4 text-base text-graphite-900"
+          />
+          <View className="mt-3">
+            <FilterChips options={TYPE_FILTERS} value={typeKey} onChange={setTypeKey} small />
+          </View>
+        </View>
       }
       renderItem={({ item, index }) => (
         <StockRow product={item} stock={stocks[index]?.data} loading={stocks[index]?.isLoading ?? true} />
@@ -128,7 +137,7 @@ function StockTab() {
         list.isLoading ? (
           <ActivityIndicator className="mt-12" color="#0B3A53" />
         ) : (
-          <Text className="mt-12 text-center text-sm text-graphite-600">No hay productos.</Text>
+          <Text className="mt-12 text-center text-sm text-graphite-600">No hay productos de este tipo.</Text>
         )
       }
       ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator className="my-4" color="#0B3A53" /> : null}
@@ -149,7 +158,9 @@ function StockRow({ product, stock, loading }: { product: Product; stock?: Stock
         <Text className="text-base font-semibold text-graphite-900" numberOfLines={2}>
           {product.name}
         </Text>
-        <Text className="mt-1 text-xs text-graphite-400">{product.code}</Text>
+        <Text className="mt-1 text-xs text-graphite-400">
+          {product.code} · {TYPE_LABEL[product.type]}
+        </Text>
         {stock && (stock.totalReservado > 0 || stock.totalBloqueado > 0) ? (
           <Text className="mt-2 text-xs text-graphite-600">
             {stock.totalReservado > 0 ? `Reservado ${qty(stock.totalReservado)}` : ''}

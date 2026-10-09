@@ -45,7 +45,7 @@ export function useProductSearch(q: string) {
 }
 
 export function useProduct(id: string) {
-  return useQuery({ queryKey: catalogKeys.product(id), queryFn: () => getProduct(id) });
+  return useQuery({ queryKey: catalogKeys.product(id), queryFn: () => getProduct(id), enabled: id.length > 0 });
 }
 
 /** Varios productos por id (los componentes del BOM). */

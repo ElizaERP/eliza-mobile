@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
+import { canManageProduction } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import type { EstadoOrden, OrdenListItem } from '@/features/production/api';
@@ -10,10 +12,12 @@ import { ESTADO_FILTERS, ESTADO_ORDEN, PRIORIDAD, num, progress } from '@/featur
 import { formatDate } from '@/features/inventory/labels';
 
 /**
- * Producción — órdenes de producción (Sprint 9.4, solo lectura).
- * GET /v1/manufacturing/orders?estado=…&limit=…&offset=… (más recientes primero).
+ * Producción — órdenes de producción (más recientes primero).
+ * Sprint 12: "+ Nueva" para crear órdenes (equipo de producción y admin).
  */
 export default function ProductionListScreen() {
+  const router = useRouter();
+  const puedeCrear = canManageProduction(useAuthStore((s) => s.user?.roles) ?? []);
   const [estado, setEstado] = useState<EstadoOrden | 'all'>('all');
   const list = useOrderList(estado);
   const items: OrdenListItem[] = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
@@ -22,7 +26,23 @@ export default function ProductionListScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Producción' }} />
+      <Stack.Screen
+        options={{
+          title: 'Producción',
+          headerRight: puedeCrear
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Nueva orden de producción"
+                  onPress={() => router.push('/(app)/produccion/nueva')}
+                  className="min-h-9 flex-row items-center rounded-full bg-white px-4"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">+ Nueva</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <View className="flex-1 bg-snow">
         <FlatList
           data={items}

@@ -142,6 +142,18 @@ export function canSuspendCustomers(roles: string[]): boolean {
   return roles.some((r) => SALES_MANAGER_ROLES.includes(r));
 }
 
+/** Crean y ejecutan órdenes de producción (WRITER_ROLES de production-orders.controller.ts). */
+const PRODUCTION_WRITER_ROLES: readonly string[] = ['Tenant.Admin', 'Manufacturing.Manager', 'Manufacturing.Operator'];
+
+export function canManageProduction(roles: string[]): boolean {
+  return roles.some((r) => PRODUCTION_WRITER_ROLES.includes(r));
+}
+
+/** Cancelar una orden: los mismos más Quality.Manager. */
+export function canCancelProduction(roles: string[]): boolean {
+  return roles.some((r) => PRODUCTION_WRITER_ROLES.includes(r) || r === 'Quality.Manager');
+}
+
 export function canReadCustomers(roles: string[]): boolean {
   return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
 }

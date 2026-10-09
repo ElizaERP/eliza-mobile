@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text } from 'react-native';
 import type { ApiError } from '@/core/http/apiClient';
 import { canCloseSalesOrders, canManageSalesOrders } from '@/core/rbac/menu';
+import { CancelarModal } from '@/components/ui/CancelarModal';
 import { Card } from '@/components/ui/Section';
 import type { Pedido } from './api';
 import { useAccionPedido, type AccionPedido } from './hooks';
@@ -139,9 +140,10 @@ export function AccionesPedido({ pedido, roles }: { pedido: Pedido; roles: strin
 
       {cancelando ? (
       <CancelarModal
-        visible
-        codigo={pedido.codigo}
-        reservado={pedido.estado === 'Reservada'}
+        titulo={`Cancelar ${pedido.codigo}`}
+        aviso={`${pedido.estado === 'Reservada' ? 'Se libera el stock reservado. ' : ''}La cancelación no se puede deshacer.`}
+        placeholder="Ej.: el cliente cambió el pedido"
+        boton="Cancelar pedido"
         enviando={accion.isPending}
         onClose={() => setCancelando(false)}
         onConfirm={(motivo) =>
@@ -154,66 +156,5 @@ export function AccionesPedido({ pedido, roles }: { pedido: Pedido; roles: strin
       />
       ) : null}
     </Card>
-  );
-}
-
-function CancelarModal({
-  visible,
-  codigo,
-  reservado,
-  enviando,
-  onClose,
-  onConfirm,
-}: {
-  visible: boolean;
-  codigo: string;
-  reservado: boolean;
-  enviando: boolean;
-  onClose: () => void;
-  onConfirm: (motivo: string) => void;
-}) {
-  const [motivo, setMotivo] = useState('');
-  const valido = motivo.trim().length >= 3;
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 justify-center bg-black/40 px-6">
-        <View className="rounded-2xl bg-white p-5">
-          <Text className="text-lg font-bold text-graphite-900">Cancelar {codigo}</Text>
-          <Text className="mt-1 text-sm text-graphite-600">
-            {reservado ? 'Se libera el stock reservado. ' : ''}La cancelación no se puede deshacer.
-          </Text>
-          <Text className="mb-1 mt-4 text-xs font-medium text-graphite-600">Motivo *</Text>
-          <TextInput
-            value={motivo}
-            onChangeText={setMotivo}
-            placeholder="Ej.: el cliente cambió el pedido"
-            placeholderTextColor="#8295A3"
-            multiline
-            maxLength={500}
-            editable={!enviando}
-            autoFocus
-            className="min-h-20 rounded-xl border border-ice-100 bg-snow px-3 py-2 text-base text-graphite-900"
-          />
-          <View className="mt-4 flex-row gap-3">
-            <Pressable
-              accessibilityRole="button"
-              onPress={onClose}
-              disabled={enviando}
-              className="min-h-11 flex-1 items-center justify-center rounded-2xl border border-ice-100"
-            >
-              <Text className="text-sm font-semibold text-graphite-600">Volver</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => onConfirm(motivo)}
-              disabled={!valido || enviando}
-              className={`min-h-11 flex-1 items-center justify-center rounded-2xl ${valido && !enviando ? 'bg-danger' : 'bg-graphite-400/40'}`}
-            >
-              {enviando ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-sm font-semibold text-white">Cancelar pedido</Text>}
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
   );
 }

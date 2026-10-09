@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { AccionesOrden } from '@/features/production/AccionesOrden';
 import { useOrder } from '@/features/production/hooks';
 import { ESTADO_ORDEN, PRIORIDAD, num, progress } from '@/features/production/labels';
 import { formatDate, formatDateTime } from '@/features/inventory/labels';
@@ -11,12 +13,14 @@ import { useLocationMap } from '@/features/inventory/hooks';
 import { useProductsByIds } from '@/features/catalog/hooks';
 
 /**
- * Detalle de una orden de producción (Sprint 9.4, solo lectura):
- * avance, fechas, materias primas (requerido vs consumido), consumos con su lote
- * y lotes de producto terminado generados.
+ * Detalle de una orden de producción: avance, fechas, materias primas (requerido vs
+ * consumido), consumos con su lote y lotes de producto terminado generados.
+ * Sprint 12: siguiente paso del ciclo (reservar → iniciar → registrar producción → completar)
+ * y cancelar.
  */
 export default function ProductionOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const roles = useAuthStore((s) => s.user?.roles) ?? [];
   const order = useOrder(id ?? '');
   const { map: locations } = useLocationMap();
   const o = order.data;
@@ -92,6 +96,8 @@ export default function ProductionOrderScreen() {
               <ProgressBar value={progress(o.cantidadRealProducida, o.cantidadObjetivo)} muted={muted} />
             </Card>
 
+            <AccionesOrden orden={o} roles={roles} />
+
             <Section title="Fechas">
               <Card>
                 <Row label="Programada" value={o.fechaProgramada ? formatDate(o.fechaProgramada) : '—'} />
@@ -146,7 +152,11 @@ export default function ProductionOrderScreen() {
 
             <Section title="Consumos registrados">
               {o.consumos.length === 0 ? (
-                <Text className="text-sm text-graphite-600">Todavía no hay consumos.</Text>
+                <Text className="text-sm text-graphite-600">
+                  {o.estado === 'Planificada' || o.estado === 'EnProceso'
+                    ? 'Las materias primas se descuentan del inventario al completar la orden.'
+                    : 'No hubo consumos.'}
+                </Text>
               ) : (
                 <View className="rounded-2xl border border-ice-100 bg-white px-4">
                   {o.consumos.map((c) => (

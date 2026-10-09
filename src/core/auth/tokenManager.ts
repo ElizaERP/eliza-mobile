@@ -1,14 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
-import { refreshAsync, type TokenResponse } from 'expo-auth-session';
-import { env } from '@/core/config/env';
-import { discovery } from './discovery';
+import { refresh, SessionError, type SessionTokens } from './sessionApi';
 
 /**
  * Token Manager — patrón del Documento de Seguridad (§3.1.2):
  *  - access_token SOLO en memoria
  *  - refresh_token en almacenamiento seguro (Keychain / Android Keystore)
  *  - renovación proactiva cuando faltan < 60 segundos para expirar
- *  - Refresh Token Rotation: cada refresh reemplaza el token guardado
+ *  - cada refresh reemplaza el refresh token guardado
+ *
+ * La renovación va contra la API (POST /v1/auth/refresh), no contra Keycloak.
+ * Solo se cierra la sesión cuando la API dice que el refresh ya no sirve;
+ * un corte de red no saca al usuario.
  */
 
 const REFRESH_TOKEN_KEY = 'eliza.refresh_token';
@@ -33,7 +35,7 @@ function toMemorySession(accessToken: string, expiresIn: number | undefined): Me
   return { accessToken, expiresAt: Math.floor(Date.now() / 1000) + ttl };
 }
 
-export async function storeSession(tokens: TokenResponse): Promise<void> {
+export async function storeSession(tokens: SessionTokens): Promise<void> {
   session = toMemorySession(tokens.accessToken, tokens.expiresIn);
   if (tokens.refreshToken) {
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
@@ -62,16 +64,16 @@ async function doRefresh(): Promise<string | null> {
   const refreshToken = await getStoredRefreshToken();
   if (!refreshToken) return null;
   try {
-    const tokens = await refreshAsync(
-      { clientId: env.keycloakClientId, refreshToken },
-      discovery,
-    );
+    const tokens = await refresh(refreshToken);
     await storeSession(tokens);
     return tokens.accessToken;
-  } catch {
-    // Refresh inválido/revocado → la sesión murió (Keycloak rota los refresh tokens)
-    await clearSession();
-    onSessionExpired?.();
+  } catch (e) {
+    if (e instanceof SessionError && e.kind === 'auth') {
+      // La sesión venció o fue cerrada: hay que volver a iniciar sesión.
+      await clearSession();
+      onSessionExpired?.();
+    }
+    // Sin conexión o servidor caído: se conserva el refresh token para reintentar luego.
     return null;
   }
 }

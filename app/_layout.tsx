@@ -28,7 +28,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (configError || status === 'loading') return;
     const inAppGroup = segments[0] === '(app)';
-    // dismissAll vacía la pila (login, auth/callback) antes de reemplazar: así el
+    // dismissAll vacía la pila (login) antes de reemplazar: así el
     // home no muestra flecha de volver hacia pantallas del login, y viceversa.
     if (status === 'authenticated' && !inAppGroup) {
       if (router.canDismiss()) router.dismissAll();

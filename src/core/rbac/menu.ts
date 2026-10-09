@@ -117,6 +117,31 @@ export function canGrantCredit(roles: string[]): boolean {
   return roles.some((r) => CREDIT_GRANTER_ROLES.includes(r));
 }
 
+/**
+ * Avanzan el pedido (confirmar, reservar, despachar, cancelar) y editan clientes:
+ * WRITER_ROLES de sales-orders.controller.ts y customers.controller.ts.
+ */
+const SALES_WRITER_ROLES: readonly string[] = ['Tenant.Admin', 'Sales.Manager', 'Sales.Operator'];
+
+export function canManageSalesOrders(roles: string[]): boolean {
+  return roles.some((r) => SALES_WRITER_ROLES.includes(r));
+}
+
+export function canEditCustomers(roles: string[]): boolean {
+  return roles.some((r) => SALES_WRITER_ROLES.includes(r));
+}
+
+/** Cerrar pedidos y suspender/activar clientes: solo gerente de ventas y admin. */
+const SALES_MANAGER_ROLES: readonly string[] = ['Tenant.Admin', 'Sales.Manager'];
+
+export function canCloseSalesOrders(roles: string[]): boolean {
+  return roles.some((r) => SALES_MANAGER_ROLES.includes(r));
+}
+
+export function canSuspendCustomers(roles: string[]): boolean {
+  return roles.some((r) => SALES_MANAGER_ROLES.includes(r));
+}
+
 export function canReadCustomers(roles: string[]): boolean {
   return roles.some((r) => CUSTOMER_READER_ROLES.includes(r));
 }

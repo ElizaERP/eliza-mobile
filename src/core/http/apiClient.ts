@@ -51,12 +51,15 @@ export interface ApiError {
 }
 
 function normalizeApiError(error: AxiosError): ApiError {
+  // El backend responde Problem Details (RFC 7807): el mensaje viene en `detail`
+  // y el código estable en `code` (p. ej. sales.insufficient_stock).
   const data = error.response?.data as
-    | { message?: string | string[]; error?: string; code?: string }
+    | { detail?: string; message?: string | string[]; error?: string; code?: string }
     | undefined;
-  const rawMessage = Array.isArray(data?.message)
-    ? data.message.join(' · ')
-    : (data?.message ?? error.message);
+  const rawMessage =
+    data?.detail ??
+    (Array.isArray(data?.message) ? data.message.join(' · ') : data?.message) ??
+    error.message;
   return {
     status: error.response?.status ?? null,
     code: data?.code ?? data?.error ?? 'UNKNOWN',

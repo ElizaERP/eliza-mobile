@@ -132,7 +132,7 @@ export function RegistrarClienteForm({
   );
 }
 
-function Campo({
+export function Campo({
   label,
   value,
   onChange,

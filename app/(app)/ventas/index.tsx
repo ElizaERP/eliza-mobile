@@ -86,6 +86,8 @@ function ErrorBox({ title, error }: { title: string; error: ApiError }) {
 // ---------------------------------------------------------------------
 // Pedidos
 // ---------------------------------------------------------------------
+const MAX_BUSQUEDA = 200;
+
 type OrderRowItem =
   | { kind: 'day'; key: string; label: string; count: number; total: number }
   | { kind: 'order'; key: string; pedido: PedidoListItem };
@@ -101,11 +103,30 @@ function OrdersTab() {
   const total = list.data?.pages[0]?.total ?? 0;
   const error = list.error as ApiError | null;
 
+  // Búsqueda por código de pedido o cliente. El backend no filtra por texto, así que se busca
+  // sobre los pedidos del período: mientras hay texto se cargan las páginas restantes (hasta 200).
+  const [text, setText] = useState('');
+  const q = text.trim().toLowerCase();
+  useEffect(() => {
+    if (q && list.hasNextPage && !list.isFetchingNextPage && pedidos.length < MAX_BUSQUEDA) {
+      void list.fetchNextPage();
+    }
+  }, [q, list, pedidos.length]);
+  const visibles = useMemo(
+    () =>
+      q
+        ? pedidos.filter((p) =>
+            `${p.codigo} ${p.clienteRazonSocial} ${p.clienteCodigo}`.toLowerCase().includes(q),
+          )
+        : pedidos,
+    [pedidos, q],
+  );
+
   // Agrupa por día local: encabezado (cantidad y total vendido sin cancelados) + pedidos
   const rows: OrderRowItem[] = useMemo(() => {
     const out: OrderRowItem[] = [];
     let current: Extract<OrderRowItem, { kind: 'day' }> | null = null;
-    for (const p of pedidos) {
+    for (const p of visibles) {
       const k = dayKey(p.createdAt);
       if (!current || current.key !== `day-${k}`) {
         current = { kind: 'day', key: `day-${k}`, label: dayLabel(k, ahora), count: 0, total: 0 };
@@ -116,7 +137,7 @@ function OrdersTab() {
       out.push({ kind: 'order', key: p.id, pedido: p });
     }
     return out;
-  }, [pedidos, ahora]);
+  }, [visibles, ahora]);
 
   // El total del período solo es exacto cuando ya se cargaron todas las páginas
   const completo = !list.hasNextPage;
@@ -131,7 +152,24 @@ function OrdersTab() {
         <View className="mb-1 gap-2">
           <FilterChips options={PERIODO_FILTERS} value={periodo} onChange={(k) => { setAhora(new Date()); setPeriodo(k); }} />
           <FilterChips options={ESTADO_PEDIDO_FILTERS} value={estado} onChange={setEstado} small />
-          {!list.isLoading && !error && total > 0 ? (
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder="Buscar por pedido o cliente"
+            placeholderTextColor="#8295A3"
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
+            className="mt-1 min-h-11 rounded-2xl border border-ice-100 bg-white px-4 text-base text-graphite-900"
+          />
+          {q ? (
+            <Text className="text-xs text-graphite-400">
+              {visibles.length === 1 ? '1 coincidencia' : `${visibles.length} coincidencias`} en{' '}
+              {PERIODO_FILTERS.find((f) => f.key === periodo)?.label.toLowerCase()}
+              {list.hasNextPage ? ' (cargando más…)' : ''}
+            </Text>
+          ) : null}
+          {!list.isLoading && !error && total > 0 && !q ? (
             <View className="mt-2 flex-row items-end justify-between rounded-2xl bg-frost-900 p-4">
               <View>
                 <Text className="text-xs text-ice-100">
@@ -178,7 +216,11 @@ function OrdersTab() {
         ) : !error ? (
           <View className="mt-12 items-center">
             <Text className="text-center text-sm text-graphite-600">
-              {periodo === 'hoy' ? 'Todavía no hay pedidos hoy' : 'No hay pedidos en este período'}
+              {q
+                ? `Ningún pedido coincide con “${text.trim()}”`
+                : periodo === 'hoy'
+                  ? 'Todavía no hay pedidos hoy'
+                  : 'No hay pedidos en este período'}
               {estado !== 'all' ? ' con este estado' : ''}.
             </Text>
             {periodo !== 'todo' ? (

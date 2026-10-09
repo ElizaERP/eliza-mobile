@@ -67,8 +67,8 @@ const ALL: ModuleId[] = ['catalogo', 'inventario', 'produccion', 'ventas'];
 const MODULE_READER_ROLES: Record<ModuleId, readonly string[]> = {
   catalogo: [
     'Tenant.Admin', 'Tenant.Viewer',
-    'Manufacturing.Manager', 'Manufacturing.Supervisor',
-    'Inventory.Manager',
+    'Manufacturing.Manager', 'Manufacturing.Supervisor', 'Manufacturing.Operator',
+    'Inventory.Manager', 'Inventory.Operator', 'Inventory.Reader',
     'Sales.Manager', 'Sales.Salesperson',
     'Quality.Manager', 'Quality.Inspector',
     'Procurement.Manager', 'Procurement.Buyer',

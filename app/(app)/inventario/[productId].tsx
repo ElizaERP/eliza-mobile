@@ -27,8 +27,12 @@ export default function ProductStockScreen() {
   const { map: locations } = useLocationMap();
 
   const s = stock.data;
-  const lots = s ? [...s.porLote].sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento)) : [];
-  const lotCode = new Map(lots.map((l) => [l.loteId, l.codigoLote]));
+  const allLots = s ? [...s.porLote].sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento)) : [];
+  // Lotes agotados (sin disponible, reservado ni bloqueado) no aportan al operario: se ocultan.
+  // El mapa de códigos usa TODOS los lotes para que los movimientos viejos sigan mostrando su lote.
+  const lots = allLots.filter((l) => l.cantidadDisponible + l.cantidadReservada + l.cantidadBloqueada > 0);
+  const hiddenLots = allLots.length - lots.length;
+  const lotCode = new Map(allLots.map((l) => [l.loteId, l.codigoLote]));
   const err = stock.error as ApiError | null;
 
   return (
@@ -104,6 +108,11 @@ export default function ProductStockScreen() {
                 );
               })
             )}
+            {hiddenLots > 0 ? (
+              <Text className="text-xs text-graphite-400">
+                {hiddenLots === 1 ? '1 lote agotado oculto.' : `${hiddenLots} lotes agotados ocultos.`}
+              </Text>
+            ) : null}
           </>
         ) : null}
 

@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
+import { canManageCatalog } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import type { Product } from '@/features/catalog/api';
 import { useCategoryMap, useProductList, useProductSearch } from '@/features/catalog/hooks';
@@ -17,12 +19,14 @@ import { STATUS_FILTERS, STATUS_LABEL, TYPE_FILTERS, TYPE_LABEL, formatGrams } f
 import { FilterChips } from '@/components/ui/FilterChips';
 
 /**
- * Catálogo — lista de productos (Sprint 9.2, solo lectura).
+ * Catálogo — lista de productos (Sprint 9.2). Sprint 14: "+ Nuevo" (gestión de catálogo).
  *  - Sin búsqueda: GET /v1/catalog/products paginado, filtrado por estado.
  *  - Con búsqueda (≥ 2 letras): GET /v1/catalog/products/search; el filtro de
  *    estado se aplica sobre los resultados.
  */
 export default function CatalogListScreen() {
+  const router = useRouter();
+  const puedeCrear = canManageCatalog(useAuthStore((s) => s.user?.roles) ?? []);
   const [filterKey, setFilterKey] = useState('all');
   const [typeKey, setTypeKey] = useState('all');
   const [text, setText] = useState('');
@@ -60,7 +64,23 @@ export default function CatalogListScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Catálogo' }} />
+      <Stack.Screen
+        options={{
+          title: 'Catálogo',
+          headerRight: puedeCrear
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Nuevo producto"
+                  onPress={() => router.push('/(app)/catalogo/nuevo')}
+                  className="min-h-9 flex-row items-center rounded-full bg-white px-4"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">+ Nuevo</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <View className="flex-1 bg-snow">
         <View className="px-5 pt-4">
           <TextInput

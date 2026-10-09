@@ -1,14 +1,17 @@
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
 import { Badge } from '@/components/ui/Badge';
 import { InfoRow } from '@/components/ui/InfoRow';
+import { AccionesProducto } from '@/features/catalog/AccionesProducto';
 import { useCategoryMap, useProduct, useProductsByIds, useUomMap } from '@/features/catalog/hooks';
 import { STATUS_LABEL, TYPE_LABEL, formatGrams, formatSalePrice, formatTempRange } from '@/features/catalog/labels';
 
 /**
- * Catálogo — detalle de producto (Sprint 9.2, solo lectura).
+ * Catálogo — detalle de producto (Sprint 9.2).
  * GET /v1/catalog/products/:id + nombres de categoría, unidades y componentes del BOM.
+ * Sprint 14: acciones (activar, editar, receta, precio, descontinuar) según el rol.
  */
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,6 +19,7 @@ export default function ProductDetailScreen() {
   const product = useProduct(id ?? '');
   const { map: categories } = useCategoryMap();
   const { map: uoms } = useUomMap();
+  const roles = useAuthStore((st) => st.user?.roles) ?? [];
 
   const p = product.data;
   const bom = p ? [...p.components].sort((a, b) => a.position - b.position) : [];
@@ -79,6 +83,8 @@ export default function ProductDetailScreen() {
             <Text className="mt-2 text-sm text-graphite-600">{p.description}</Text>
           ) : null}
         </View>
+
+        <AccionesProducto producto={p} roles={roles} />
 
         <View className="mt-4 rounded-2xl border border-ice-100 bg-white px-5 py-2">
           {rows

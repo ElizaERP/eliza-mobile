@@ -24,6 +24,14 @@ export const STATUS_FILTERS: { key: string; label: string; status: ProductStatus
   { key: 'discontinued', label: 'Descontinuados', status: ['Discontinued'] },
 ];
 
+/** Filtro por tipo: separa producto terminado de materia prima (Catálogo e Inventario). */
+export const TYPE_FILTERS: { key: string; label: string; types: ProductType[] }[] = [
+  { key: 'all', label: 'Todos los tipos', types: [] },
+  { key: 'finished', label: 'Producto terminado', types: ['FinishedGood'] },
+  { key: 'raw', label: 'Materia prima', types: ['RawMaterial'] },
+  { key: 'semi', label: 'Semielaborado', types: ['SemiFinished'] },
+];
+
 export function formatGrams(g: number | null): string | null {
   if (g === null) return null;
   return g >= 1000 ? `${(g / 1000).toLocaleString('es-CO')} kg` : `${g.toLocaleString('es-CO')} g`;

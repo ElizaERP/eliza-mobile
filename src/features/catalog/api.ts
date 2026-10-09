@@ -72,6 +72,7 @@ export interface UnitOfMeasure {
 
 export interface ListProductsParams {
   status?: ProductStatus[];
+  type?: ProductType[];
   page?: number;
   pageSize?: number;
 }
@@ -80,6 +81,7 @@ export async function listProducts(params: ListProductsParams): Promise<ProductP
   const { data } = await apiClient.get<ProductPage>('/v1/catalog/products', {
     params: {
       status: params.status?.length ? params.status.join(',') : undefined,
+      type: params.type?.length ? params.type.join(',') : undefined,
       page: params.page ?? 1,
       pageSize: params.pageSize ?? 25,
     },

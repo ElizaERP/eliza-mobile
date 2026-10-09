@@ -101,5 +101,25 @@ export async function listOrders(params: {
 
 export async function getOrder(id: string): Promise<OrdenDetalle> {
   const { data } = await apiClient.get<OrdenDetalle>(`/v1/manufacturing/orders/${id}`);
-  return data;
+  return { ...data, componentes: (data.componentes ?? []).map(normalizeComponente) };
+}
+
+/**
+ * Las órdenes creadas antes del fix del backend (eliza-foundation 9be9cb5) guardaron el
+ * snapshot del BOM con ids como objetos ({ value }) y cantidades nulas (NaN serializado).
+ * Se normaliza aquí para que la pantalla nunca reciba objetos ni nulos en esos campos.
+ */
+function normalizeComponente(raw: ComponenteOrden): ComponenteOrden {
+  const r = raw as unknown as Record<string, unknown>;
+  const text = (v: unknown): string =>
+    typeof v === 'string' ? v : typeof (v as { value?: unknown })?.value === 'string' ? (v as { value: string }).value : '—';
+  const qty = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number.NaN);
+  return {
+    productId: text(r.productId),
+    productCode: text(r.productCode),
+    productName: text(r.productName),
+    cantidadPorUnidad: qty(r.cantidadPorUnidad),
+    cantidadTotalRequerida: qty(r.cantidadTotalRequerida),
+    unidadMedida: text(r.unidadMedida),
+  };
 }

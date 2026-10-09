@@ -99,10 +99,10 @@ export default function ProductionOrderScreen() {
               {o.componentes.length === 0 ? (
                 <Text className="text-sm text-graphite-600">La orden no tiene componentes.</Text>
               ) : (
-                o.componentes.map((c) => {
+                o.componentes.map((c, i) => {
                   const consumido = consumidoPor.get(c.productId) ?? 0;
                   return (
-                    <View key={c.productId} className="mb-3 rounded-2xl border border-ice-100 bg-white p-4">
+                    <View key={`${c.productId}-${i}`} className="mb-3 rounded-2xl border border-ice-100 bg-white p-4">
                       <Text className="text-base font-semibold text-graphite-900">{c.productName}</Text>
                       <Text className="text-xs text-graphite-400">
                         {c.productCode} · {num(c.cantidadPorUnidad)} {c.unidadMedida} por unidad

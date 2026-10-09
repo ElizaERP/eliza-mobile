@@ -27,10 +27,11 @@ export const ESTADO_FILTERS: { key: EstadoOrden | 'all'; label: string }[] = [
 
 /** Avance producido / objetivo, entre 0 y 1. */
 export function progress(producido: number, objetivo: number): number {
-  if (objetivo <= 0) return 0;
+  if (!Number.isFinite(producido) || !Number.isFinite(objetivo) || objetivo <= 0) return 0;
   return Math.min(1, Math.max(0, producido / objetivo));
 }
 
-export function num(n: number): string {
+export function num(n: number | null | undefined): string {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return '—';
   return n.toLocaleString('es-CO', { maximumFractionDigits: 3 });
 }

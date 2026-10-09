@@ -15,7 +15,7 @@ sub-sprints.
 | Estado de sesión/UI | Zustand |
 | Estilos | NativeWind (Tailwind) |
 | HTTP | Axios con interceptores (Bearer + refresh + 401) |
-| Auth | Keycloak 25 · Authorization Code + PKCE S256 · `expo-auth-session` |
+| Auth | Login dentro de la app: `POST /v1/auth/login` en la API (que habla con Keycloak 25 por la red interna) · refresh token en SecureStore |
 | Tokens | access en memoria · refresh en Keychain/Keystore (`expo-secure-store`) |
 
 ## Estructura
@@ -27,7 +27,7 @@ app/                    # rutas (Expo Router)
   (app)/module/[id].tsx # placeholder por módulo (sprints 9.2–9.5)
 src/core/
   config/env.ts         # variables EXPO_PUBLIC_*
-  auth/                 # discovery, jwt, tokenManager, store, service
+  auth/                 # sessionApi, jwt, tokenManager, store, service
   http/apiClient.ts     # axios hacia el backend NestJS
   query/queryClient.ts  # TanStack Query
   rbac/menu.ts          # rol → módulos visibles
@@ -43,7 +43,7 @@ El backend DEV corre en una VM de OCI publicada solo dentro de la tailnet de Tai
 1. Instalá **Tailscale** en el teléfono, iniciá sesión con la misma cuenta y dejalo **activo**.
 2. Instalá **Expo Go** (SDK 57).
 3. En la PC: `copy .env.example .env` (ya trae las URLs de DEV), `npm install`, `npm run start:clear`.
-4. Escaneá el QR con Expo Go → **Iniciar sesión** → usuario de Keycloak del realm `eliza`.
+4. Escaneá el QR con Expo Go → escribí usuario y contraseña (usuario de Keycloak del realm `eliza`) → **Iniciar sesión**.
 5. En **Mi perfil**, la tarjeta *Conexión con el backend* debe mostrar ✅ en "API lista" y "Sesión en la API".
 
 ## Quickstart

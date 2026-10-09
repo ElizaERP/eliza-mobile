@@ -1,7 +1,5 @@
-import { revokeAsync, type TokenResponse } from 'expo-auth-session';
-import { env } from '@/core/config/env';
-import { discovery } from './discovery';
 import { decodeJwt, extractRoles, type KeycloakAccessTokenClaims } from './jwt';
+import { login, logout } from './sessionApi';
 import {
   clearSession,
   getStoredRefreshToken,
@@ -44,27 +42,23 @@ export async function bootstrapSession(): Promise<void> {
     store.setUnauthenticated();
     return;
   }
-  const claims = decodeJwt(accessToken);
-  store.setAuthenticated(claimsToUser(claims));
+  store.setAuthenticated(claimsToUser(decodeJwt(accessToken)));
 }
 
-/** Completa el login tras el intercambio code → tokens (PKCE). */
-export async function completeSignIn(tokens: TokenResponse): Promise<void> {
+/**
+ * Inicia sesión con usuario y contraseña (POST /v1/auth/login).
+ * Lanza SessionError con un mensaje listo para mostrar si falla.
+ */
+export async function signIn(username: string, password: string): Promise<void> {
+  const tokens = await login(username, password);
   await storeSession(tokens);
-  const claims = decodeJwt(tokens.accessToken);
-  useAuthStore.getState().setAuthenticated(claimsToUser(claims));
+  useAuthStore.getState().setAuthenticated(claimsToUser(decodeJwt(tokens.accessToken)));
 }
 
-/** Cierra sesión: revoca el refresh token en Keycloak y limpia el storage. */
+/** Cierra sesión: la API revoca el refresh token en Keycloak y se limpia el storage. */
 export async function signOut(): Promise<void> {
   const refreshToken = await getStoredRefreshToken();
-  if (refreshToken) {
-    try {
-      await revokeAsync({ clientId: env.keycloakClientId, token: refreshToken }, discovery);
-    } catch {
-      // Si Keycloak no responde igual limpiamos localmente
-    }
-  }
+  if (refreshToken) await logout(refreshToken);
   await clearSession();
   useAuthStore.getState().setUnauthenticated();
 }

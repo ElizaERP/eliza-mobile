@@ -14,14 +14,24 @@ import { useAuthStore } from '@/core/auth';
 import { canReadCustomers } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import { FilterChips } from '@/components/ui/FilterChips';
-import type { ClienteListItem, EstadoPedido } from '@/features/sales/api';
+import type { ClienteListItem, EstadoPedido, PedidoListItem } from '@/features/sales/api';
 import { useCustomerList, useSalesOrderList } from '@/features/sales/hooks';
-import { CONDICIONES_PAGO, ESTADO_CLIENTE, ESTADO_PEDIDO_FILTERS } from '@/features/sales/labels';
+import {
+  CONDICIONES_PAGO,
+  ESTADO_CLIENTE,
+  ESTADO_PEDIDO_FILTERS,
+  PERIODO_FILTERS,
+  dayKey,
+  dayLabel,
+  money,
+  periodoDesde,
+  type Periodo,
+} from '@/features/sales/labels';
 import { PedidoRow } from '@/features/sales/PedidoRow';
 
 /**
  * Ventas (Sprint 9.5, solo lectura).
- *  - Pedidos: GET /v1/sales/orders?estado=…  (más recientes primero).
+ *  - Pedidos: GET /v1/sales/orders?estado=…&creadoDesde=…  (Hoy por defecto, agrupados por día).
  *  - Clientes: GET /v1/sales/customers?search=…  (solo si el rol puede leer clientes).
  */
 export default function SalesScreen() {
@@ -76,38 +86,113 @@ function ErrorBox({ title, error }: { title: string; error: ApiError }) {
 // ---------------------------------------------------------------------
 // Pedidos
 // ---------------------------------------------------------------------
+type OrderRowItem =
+  | { kind: 'day'; key: string; label: string; count: number; total: number }
+  | { kind: 'order'; key: string; pedido: PedidoListItem };
+
 function OrdersTab() {
+  const [periodo, setPeriodo] = useState<Periodo>('hoy');
   const [estado, setEstado] = useState<EstadoPedido | 'all'>('all');
-  const list = useSalesOrderList(estado);
-  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
+  // Inicio del período en hora local; se recalcula al cambiar de período o al refrescar
+  const [ahora, setAhora] = useState(() => new Date());
+  const desde = useMemo(() => periodoDesde(periodo, ahora), [periodo, ahora]);
+  const list = useSalesOrderList(estado, undefined, desde);
+  const pedidos = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const total = list.data?.pages[0]?.total ?? 0;
   const error = list.error as ApiError | null;
 
+  // Agrupa por día local: encabezado (cantidad y total vendido sin cancelados) + pedidos
+  const rows: OrderRowItem[] = useMemo(() => {
+    const out: OrderRowItem[] = [];
+    let current: Extract<OrderRowItem, { kind: 'day' }> | null = null;
+    for (const p of pedidos) {
+      const k = dayKey(p.createdAt);
+      if (!current || current.key !== `day-${k}`) {
+        current = { kind: 'day', key: `day-${k}`, label: dayLabel(k, ahora), count: 0, total: 0 };
+        out.push(current);
+      }
+      current.count += 1;
+      if (p.estado !== 'Cancelada') current.total += p.total;
+      out.push({ kind: 'order', key: p.id, pedido: p });
+    }
+    return out;
+  }, [pedidos, ahora]);
+
+  // El total del período solo es exacto cuando ya se cargaron todas las páginas
+  const completo = !list.hasNextPage;
+  const vendido = pedidos.filter((p) => p.estado !== 'Cancelada').reduce((a, p) => a + p.total, 0);
+
   return (
     <FlatList
-      data={items}
-      keyExtractor={(o) => o.id}
+      data={rows}
+      keyExtractor={(r) => r.key}
       contentContainerClassName="gap-3 px-5 pb-8 pt-4"
       ListHeaderComponent={
-        <View className="mb-1">
-          <FilterChips options={ESTADO_PEDIDO_FILTERS} value={estado} onChange={setEstado} />
-          {!list.isLoading && !error ? (
-            <Text className="mt-3 text-xs text-graphite-400">{total === 1 ? '1 pedido' : `${total} pedidos`}</Text>
+        <View className="mb-1 gap-2">
+          <FilterChips options={PERIODO_FILTERS} value={periodo} onChange={(k) => { setAhora(new Date()); setPeriodo(k); }} />
+          <FilterChips options={ESTADO_PEDIDO_FILTERS} value={estado} onChange={setEstado} small />
+          {!list.isLoading && !error && total > 0 ? (
+            <View className="mt-2 flex-row items-end justify-between rounded-2xl bg-frost-900 p-4">
+              <View>
+                <Text className="text-xs text-ice-100">
+                  {PERIODO_FILTERS.find((f) => f.key === periodo)?.label} · {total === 1 ? '1 pedido' : `${total} pedidos`}
+                </Text>
+                <Text className="mt-1 text-2xl font-bold text-white">
+                  {completo ? money(vendido) : `${money(vendido)}+`}
+                </Text>
+              </View>
+              <Text className="text-xs text-ice-100">vendido{'\n'}sin cancelados</Text>
+            </View>
           ) : null}
           {error ? <ErrorBox title="No se pudieron cargar los pedidos" error={error} /> : null}
         </View>
       }
-      renderItem={({ item }) => <PedidoRow pedido={item} />}
+      renderItem={({ item }) =>
+        item.kind === 'day' ? (
+          <View className="mt-2 flex-row items-baseline justify-between">
+            <Text className="text-sm font-semibold uppercase tracking-wide text-graphite-600">{item.label}</Text>
+            <Text className="text-xs text-graphite-400">
+              {item.count === 1 ? '1 pedido' : `${item.count} pedidos`} · {money(item.total)}
+            </Text>
+          </View>
+        ) : (
+          <PedidoRow pedido={item.pedido} />
+        )
+      }
       onEndReachedThreshold={0.4}
       onEndReached={() => {
         if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage();
       }}
-      refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={() => void list.refetch()} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={list.isRefetching}
+          onRefresh={() => {
+            setAhora(new Date());
+            void list.refetch();
+          }}
+        />
+      }
       ListEmptyComponent={
         list.isLoading ? (
           <ActivityIndicator className="mt-12" color="#0B3A53" />
         ) : !error ? (
-          <Text className="mt-12 text-center text-sm text-graphite-600">No hay pedidos con este estado.</Text>
+          <View className="mt-12 items-center">
+            <Text className="text-center text-sm text-graphite-600">
+              {periodo === 'hoy' ? 'Todavía no hay pedidos hoy' : 'No hay pedidos en este período'}
+              {estado !== 'all' ? ' con este estado' : ''}.
+            </Text>
+            {periodo !== 'todo' ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => { setAhora(new Date()); setPeriodo(periodo === 'hoy' ? 'semana' : 'todo'); }}
+                className="mt-4 min-h-10 justify-center rounded-full border border-ice-100 bg-white px-5"
+              >
+                <Text className="text-sm font-medium text-frost-900">
+                  {periodo === 'hoy' ? 'Ver los últimos 7 días' : 'Ver todos'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null
       }
       ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator className="my-4" color="#0B3A53" /> : null}

@@ -122,6 +122,8 @@ export async function getCustomer(id: string): Promise<Cliente> {
 export async function listSalesOrders(params: {
   estado?: EstadoPedido;
   clienteId?: string;
+  /** ISO 8601: solo pedidos creados desde este instante. */
+  creadoDesde?: string;
   limit: number;
   offset: number;
 }): Promise<Page<PedidoListItem>> {

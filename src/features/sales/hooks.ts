@@ -14,21 +14,22 @@ const nextOffset = <T,>(last: Page<T>) =>
   last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined;
 
 export const salesKeys = {
-  orders: (estado: EstadoPedido | 'all', clienteId?: string) =>
-    ['sales', 'orders', 'list', estado, clienteId ?? null] as const,
+  orders: (estado: EstadoPedido | 'all', clienteId?: string, creadoDesde?: string) =>
+    ['sales', 'orders', 'list', estado, clienteId ?? null, creadoDesde ?? null] as const,
   order: (id: string) => ['sales', 'orders', 'detail', id] as const,
   customers: (search: string) => ['sales', 'customers', 'list', search] as const,
   customer: (id: string) => ['sales', 'customers', 'detail', id] as const,
 };
 
-/** Pedidos (scroll infinito), por estado y opcionalmente de un cliente. */
-export function useSalesOrderList(estado: EstadoPedido | 'all', clienteId?: string) {
+/** Pedidos (scroll infinito), por estado, desde una fecha y opcionalmente de un cliente. */
+export function useSalesOrderList(estado: EstadoPedido | 'all', clienteId?: string, creadoDesde?: string) {
   return useInfiniteQuery({
-    queryKey: salesKeys.orders(estado, clienteId),
+    queryKey: salesKeys.orders(estado, clienteId, creadoDesde),
     queryFn: ({ pageParam }) =>
       listSalesOrders({
         estado: estado === 'all' ? undefined : estado,
         clienteId,
+        creadoDesde,
         limit: PAGE_SIZE,
         offset: pageParam,
       }),

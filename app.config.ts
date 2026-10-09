@@ -14,17 +14,27 @@ const config: ExpoConfig = {
   scheme: 'eliza',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
+  icon: './assets/icon.png',
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.bcmcongelados.eliza',
   },
   android: {
     package: 'com.bcmcongelados.eliza',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#0B3A53',
+    },
   },
   plugins: [
     'expo-router',
     'expo-secure-store',
-    ['expo-splash-screen', { backgroundColor: '#0B3A53', resizeMode: 'contain' }],
+    // El build nativo exige una imagen para el splash (sin ella falla con
+    // "drawable/splashscreen_logo not found"); Expo Go no la pedía.
+    [
+      'expo-splash-screen',
+      { image: './assets/splash-icon.png', imageWidth: 180, backgroundColor: '#0B3A53', resizeMode: 'contain' },
+    ],
   ],
   experiments: { typedRoutes: true },
   extra: {

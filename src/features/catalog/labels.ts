@@ -32,6 +32,14 @@ export const TYPE_FILTERS: { key: string; label: string; types: ProductType[] }[
   { key: 'semi', label: 'Semielaborado', types: ['SemiFinished'] },
 ];
 
+const copFmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+/** Precio de lista para mostrar: "$ 4.500 + IVA" o null si no tiene. */
+export function formatSalePrice(price: number | null | undefined): string | null {
+  if (typeof price !== 'number' || !Number.isFinite(price)) return null;
+  return `${copFmt.format(price)} + IVA`;
+}
+
 export function formatGrams(g: number | null): string | null {
   if (g === null) return null;
   return g >= 1000 ? `${(g / 1000).toLocaleString('es-CO')} kg` : `${g.toLocaleString('es-CO')} g`;

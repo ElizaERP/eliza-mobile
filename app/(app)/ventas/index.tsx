@@ -11,7 +11,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import type { ApiError } from '@/core/http/apiClient';
 import { useAuthStore } from '@/core/auth';
-import { canReadCustomers } from '@/core/rbac/menu';
+import { canCreateSalesOrders, canReadCustomers } from '@/core/rbac/menu';
 import { Badge } from '@/components/ui/Badge';
 import { FilterChips } from '@/components/ui/FilterChips';
 import type { ClienteListItem, EstadoPedido, PedidoListItem } from '@/features/sales/api';
@@ -37,11 +37,29 @@ import { PedidoRow } from '@/features/sales/PedidoRow';
 export default function SalesScreen() {
   const roles = useAuthStore((s) => s.user?.roles);
   const showCustomers = canReadCustomers(roles ?? []);
+  const canCreate = canCreateSalesOrders(roles ?? []);
+  const router = useRouter();
   const [tab, setTab] = useState<'orders' | 'customers'>('orders');
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Ventas' }} />
+      <Stack.Screen
+        options={{
+          title: 'Ventas',
+          headerRight: canCreate
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Nuevo pedido"
+                  onPress={() => router.push('/(app)/ventas/nuevo')}
+                  className="min-h-9 flex-row items-center rounded-full bg-white px-4"
+                >
+                  <Text className="text-sm font-semibold text-frost-900">+ Nuevo</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <View className="flex-1 bg-snow">
         {showCustomers ? (
           <View className="mx-5 mt-4 flex-row rounded-2xl bg-ice-100 p-1">

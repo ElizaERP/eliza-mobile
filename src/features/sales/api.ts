@@ -131,6 +131,48 @@ export async function listSalesOrders(params: {
   return data;
 }
 
+export interface NuevoClienteBody {
+  codigo: string;
+  nit: string;
+  razonSocial: string;
+  nombreComercial?: string;
+  /** Solo gerente/admin pueden enviar crédito; el vendedor registra a Contado (backend). */
+  condicionesPago?: CondicionesPago;
+  direccionFiscal: { direccion: string; ciudad: string; departamento: string; telefono?: string };
+  contactoNombre?: string;
+  contactoTelefono?: string;
+  contactoEmail?: string;
+}
+
+export async function createCustomer(body: NuevoClienteBody): Promise<Cliente> {
+  const { data } = await apiClient.post<Cliente>('/v1/sales/customers', body);
+  return data;
+}
+
+/** Código de cliente creado desde la app: CLI-M-AAMMDDHHMMSS-XXX. */
+export function nuevoCodigoCliente(now = new Date()): string {
+  return nuevoCodigoPedido(now).replace(/^PV-/, 'CLI-');
+}
+
+export async function createSalesOrder(body: { codigo: string; clienteId: string; notas?: string }): Promise<Pedido> {
+  const { data } = await apiClient.post<Pedido>('/v1/sales/orders', body);
+  return data;
+}
+
+/** Sin precioUnitario: el backend usa el precio de lista (el vendedor no puede fijarlo). */
+export async function addSalesOrderLine(ordenId: string, body: { productId: string; cantidad: number }): Promise<Pedido> {
+  const { data } = await apiClient.post<Pedido>(`/v1/sales/orders/${ordenId}/lines`, body);
+  return data;
+}
+
+/** Código de pedido creado desde la app: PV-M-AAMMDDHHMMSS-XXX (único por segundo y aleatorio). */
+export function nuevoCodigoPedido(now = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  const ts = `${String(now.getFullYear()).slice(2)}${p(now.getMonth() + 1)}${p(now.getDate())}${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+  const rnd = Math.random().toString(36).slice(2, 5).toUpperCase().padEnd(3, '0');
+  return `PV-M-${ts}-${rnd}`;
+}
+
 export async function getSalesOrder(id: string): Promise<Pedido> {
   const { data } = await apiClient.get<Pedido>(`/v1/sales/orders/${id}`);
   return data;

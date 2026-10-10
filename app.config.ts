@@ -6,6 +6,8 @@ import type { ExpoConfig } from 'expo/config';
  *  - en desarrollo (Expo Go) salen del archivo .env;
  *  - en los builds de EAS salen de eas.json (el .env no se sube a la nube).
  */
+const EAS_PROJECT_ID = '82b30911-f051-4bc2-9d93-e62658a2662a';
+
 const config: ExpoConfig = {
   name: 'ELIZA',
   slug: 'eliza-mobile',
@@ -37,9 +39,22 @@ const config: ExpoConfig = {
     ],
   ],
   experiments: { typedRoutes: true },
+  /**
+   * Actualizaciones por aire (EAS Update): los cambios de JavaScript (pantallas,
+   * textos, lógica) llegan a los teléfonos sin reinstalar el APK.
+   * runtimeVersion = version: una actualización solo llega a los APK de la MISMA
+   * versión. Si un cambio agrega una librería nativa, se sube la versión y se
+   * construye un APK nuevo (ver ACTUALIZACIONES.md).
+   */
+  runtimeVersion: { policy: 'appVersion' },
+  updates: {
+    url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 0,
+  },
   extra: {
     // Proyecto en EAS (expo.dev): https://expo.dev/accounts/santodev097/projects/eliza-mobile
-    eas: { projectId: '82b30911-f051-4bc2-9d93-e62658a2662a' },
+    eas: { projectId: EAS_PROJECT_ID },
   },
 };
 

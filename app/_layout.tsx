@@ -8,17 +8,20 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/core/query/queryClient';
 import { configError } from '@/core/config/env';
 import { bootstrapSession, useAuthStore } from '@/core/auth';
+import { useActualizaciones } from '@/core/updates/useActualizaciones';
 
 /**
  * Layout raíz: providers + guard de autenticación.
  * Mientras status === 'loading' se muestra el splash (app/index.tsx).
  * Si la configuración de ambiente está incompleta, se muestra el motivo
  * en lugar de quedarse en el splash.
+ * También busca actualizaciones por aire (EAS Update) al abrir y al volver a la app.
  */
 export default function RootLayout() {
   const status = useAuthStore((s) => s.status);
   const segments = useSegments();
   const router = useRouter();
+  useActualizaciones();
 
   useEffect(() => {
     if (configError) return;

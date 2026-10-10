@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
     "kc:provision": "node keycloak/provision.mjs",
-    "kc:export": "node keycloak/export.mjs"
+    "kc:export": "node keycloak/export.mjs",
+    "actualizar": "node scripts/publicar-actualizacion.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.0",
@@ -22,6 +23,7 @@
     "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.25",
     "nativewind": "^4.2.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",

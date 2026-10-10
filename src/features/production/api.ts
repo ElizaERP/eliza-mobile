@@ -5,6 +5,7 @@ import { apiClient } from '@/core/http/apiClient';
  * (src/contexts/manufacturing/application/dto/manufacturing.views.ts).
  * Sprint 9.4: lectura. Sprint 12: crear órdenes y ejecutarlas
  * (reservar materiales → iniciar → registrar producción → completar, o cancelar).
+ * Sprint 15: jornadas con varios productos y consumo real al completar.
  */
 
 export type EstadoOrden = 'Planificada' | 'EnProceso' | 'Completada' | 'Cerrada' | 'Cancelada';
@@ -23,6 +24,8 @@ export interface OrdenListItem {
   materialesReservados: boolean;
   consumosCount: number;
   lotesProducidosCount: number;
+  /** Jornada a la que pertenece (null = orden suelta). */
+  jornada: string | null;
   fechaProgramada: string | null;
   createdAt: string;
 }
@@ -80,6 +83,7 @@ export interface OrdenDetalle {
   consumos: ConsumoMp[];
   lotesProducidos: LoteProducido[];
   notas: string | null;
+  jornada: string | null;
   canceladoMotivo: string | null;
   canceladoPor: string | null;
   canceladoEn: string | null;
@@ -102,7 +106,11 @@ export async function listOrders(params: {
 
 export async function getOrder(id: string): Promise<OrdenDetalle> {
   const { data } = await apiClient.get<OrdenDetalle>(`/v1/manufacturing/orders/${id}`);
-  return { ...data, componentes: (data.componentes ?? []).map(normalizeComponente) };
+  return normalizeOrden(data);
+}
+
+function normalizeOrden(o: OrdenDetalle): OrdenDetalle {
+  return { ...o, jornada: o.jornada ?? null, componentes: (o.componentes ?? []).map(normalizeComponente) };
 }
 
 /**
@@ -170,9 +178,18 @@ export async function recordProduction(id: string, body: RegistrarProduccionBody
   return data;
 }
 
-/** Completa la orden y descuenta del inventario las materias primas reservadas. */
-export async function completeOrder(id: string): Promise<OrdenDetalle> {
-  const { data } = await apiClient.post<OrdenDetalle>(`/v1/manufacturing/orders/${id}/complete`);
+export interface ConsumoReal {
+  productId: string;
+  /** Lo que se gastó de verdad (0 = no se usó). */
+  cantidad: number;
+}
+
+/**
+ * Completa la orden y descuenta del inventario lo que de verdad se gastó.
+ * Materia prima omitida = receta × cantidad realmente producida.
+ */
+export async function completeOrder(id: string, consumos?: ConsumoReal[]): Promise<OrdenDetalle> {
+  const { data } = await apiClient.post<OrdenDetalle>(`/v1/manufacturing/orders/${id}/complete`, consumos ? { consumos } : {});
   return data;
 }
 
@@ -205,4 +222,75 @@ export function sugerirCodigoLote(productCode: string, now = new Date()): string
 export function fechaMasDias(dias: number, now = new Date()): string {
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dias);
   return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+
+// ---------------------------------------------------------------------
+// Sprint 15: jornadas (varios productos, un día de planta)
+// ---------------------------------------------------------------------
+
+export type EstadoJornada = 'Planificada' | 'EnProceso' | 'Completada' | 'Cancelada';
+
+export interface Jornada {
+  codigo: string;
+  estado: EstadoJornada;
+  fechaProgramada: string | null;
+  notas: string | null;
+  /** Todas las órdenes activas tienen materiales reservados. */
+  materialesReservados: boolean;
+  ordenes: OrdenDetalle[];
+  createdAt: string;
+}
+
+export interface JornadaListItem {
+  codigo: string;
+  estado: EstadoJornada;
+  fechaProgramada: string | null;
+  productos: { ordenId: string; name: string; cantidadObjetivo: number; cantidadRealProducida: number; estado: EstadoOrden }[];
+  createdAt: string;
+}
+
+export interface NuevaJornadaBody {
+  lineas: { productoTerminadoId: string; cantidadObjetivo: number }[];
+  prioridad?: PrioridadOrden;
+  /** AAAA-MM-DD */
+  fechaProgramada?: string;
+  notas?: string;
+}
+
+const normalizeJornada = (j: Jornada): Jornada => ({ ...j, ordenes: j.ordenes.map(normalizeOrden) });
+
+export async function listJornadas(limit = 30): Promise<JornadaListItem[]> {
+  const { data } = await apiClient.get<{ items: JornadaListItem[] }>('/v1/manufacturing/jornadas', { params: { limit } });
+  return data.items;
+}
+
+export async function getJornada(codigo: string): Promise<Jornada> {
+  const { data } = await apiClient.get<Jornada>(`/v1/manufacturing/jornadas/${codigo}`);
+  return normalizeJornada(data);
+}
+
+export async function createJornada(body: NuevaJornadaBody): Promise<Jornada> {
+  const { data } = await apiClient.post<Jornada>('/v1/manufacturing/jornadas', body);
+  return normalizeJornada(data);
+}
+
+/** Reserva todas las materias primas de todos los productos, o ninguna. */
+export async function reserveJornada(codigo: string): Promise<Jornada> {
+  const { data } = await apiClient.post<Jornada>(`/v1/manufacturing/jornadas/${codigo}/reserve-materials`);
+  return normalizeJornada(data);
+}
+
+export async function startJornada(codigo: string): Promise<Jornada> {
+  const { data } = await apiClient.post<Jornada>(`/v1/manufacturing/jornadas/${codigo}/start`);
+  return normalizeJornada(data);
+}
+
+export async function cancelJornada(codigo: string, motivo: string): Promise<Jornada> {
+  const { data } = await apiClient.post<Jornada>(`/v1/manufacturing/jornadas/${codigo}/cancel`, { motivo });
+  return normalizeJornada(data);
+}
+
+/** Consumo teórico de una materia prima: receta × cantidad producida (redondeado a 6 decimales, igual que el backend). */
+export function consumoTeorico(cantidadPorUnidad: number, producido: number): number {
+  return Math.round(cantidadPorUnidad * producido * 1_000_000) / 1_000_000;
 }

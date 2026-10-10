@@ -1,15 +1,21 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  cancelJornada,
   cancelOrder,
   completeOrder,
-  createOrder,
+  createJornada,
+  getJornada,
+  listJornadas,
+  reserveJornada,
+  startJornada,
+  type ConsumoReal,
+  type NuevaJornadaBody,
   getOrder,
   listOrders,
   recordProduction,
   reserveMaterials,
   startOrder,
   type EstadoOrden,
-  type NuevaOrdenBody,
   type RegistrarProduccionBody,
 } from './api';
 
@@ -18,6 +24,8 @@ const PAGE_SIZE = 25;
 export const productionKeys = {
   list: (estado: EstadoOrden | 'all') => ['production', 'orders', 'list', estado] as const,
   order: (id: string) => ['production', 'orders', 'detail', id] as const,
+  jornadas: ['production', 'jornadas', 'list'] as const,
+  jornada: (codigo: string) => ['production', 'jornadas', 'detail', codigo] as const,
 };
 
 /** Órdenes de producción (scroll infinito), opcionalmente filtradas por estado. */
@@ -44,17 +52,12 @@ export function useOrder(id: string) {
 function useRefrescar() {
   const qc = useQueryClient();
   return () => {
-    void qc.invalidateQueries({ queryKey: ['production', 'orders'] });
+    void qc.invalidateQueries({ queryKey: ['production'] });
     void qc.invalidateQueries({ queryKey: ['inventory'] });
   };
 }
 
-export function useCrearOrden() {
-  const refrescar = useRefrescar();
-  return useMutation({ mutationFn: (body: NuevaOrdenBody) => createOrder(body), onSettled: refrescar });
-}
-
-export type AccionOrden = 'reservar' | 'iniciar' | 'completar' | 'cancelar';
+export type AccionOrden = 'reservar' | 'iniciar' | 'cancelar';
 
 export function useAccionOrden(id: string) {
   const refrescar = useRefrescar();
@@ -62,7 +65,6 @@ export function useAccionOrden(id: string) {
     mutationFn: async ({ accion, motivo }: { accion: AccionOrden; motivo?: string }): Promise<void> => {
       if (accion === 'reservar') await reserveMaterials(id);
       else if (accion === 'iniciar') await startOrder(id);
-      else if (accion === 'completar') await completeOrder(id);
       else await cancelOrder(id, (motivo ?? '').trim());
     },
     onSettled: refrescar,
@@ -72,4 +74,41 @@ export function useAccionOrden(id: string) {
 export function useRegistrarProduccion(id: string) {
   const refrescar = useRefrescar();
   return useMutation({ mutationFn: (body: RegistrarProduccionBody) => recordProduction(id, body), onSettled: refrescar });
+}
+
+/** Completar con el consumo real de cada materia prima (Sprint 15). */
+export function useCompletarOrden(id: string) {
+  const refrescar = useRefrescar();
+  return useMutation({ mutationFn: (consumos: ConsumoReal[]) => completeOrder(id, consumos), onSettled: refrescar });
+}
+
+// ---------------------------------------------------------------------
+// Sprint 15: jornadas
+// ---------------------------------------------------------------------
+
+export function useJornadaList() {
+  return useQuery({ queryKey: productionKeys.jornadas, queryFn: () => listJornadas(30) });
+}
+
+export function useJornada(codigo: string) {
+  return useQuery({ queryKey: productionKeys.jornada(codigo), queryFn: () => getJornada(codigo), enabled: codigo.length > 0 });
+}
+
+export function useCrearJornada() {
+  const refrescar = useRefrescar();
+  return useMutation({ mutationFn: (body: NuevaJornadaBody) => createJornada(body), onSettled: refrescar });
+}
+
+export type AccionJornada = 'reservar' | 'iniciar' | 'cancelar';
+
+export function useAccionJornada(codigo: string) {
+  const refrescar = useRefrescar();
+  return useMutation({
+    mutationFn: async ({ accion, motivo }: { accion: AccionJornada; motivo?: string }): Promise<void> => {
+      if (accion === 'reservar') await reserveJornada(codigo);
+      else if (accion === 'iniciar') await startJornada(codigo);
+      else await cancelJornada(codigo, (motivo ?? '').trim());
+    },
+    onSettled: refrescar,
+  });
 }

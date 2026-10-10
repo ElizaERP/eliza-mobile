@@ -13,6 +13,7 @@ import { num } from './labels';
  * Acciones de una orden de producción según su estado (Sprint 12):
  *   Planificada → Reservar materiales → Iniciar → Registrar producción (lotes) → Completar
  *   y Cancelar en Planificada / En proceso (devuelve el stock reservado).
+ * Sprint 15: Completar abre la pantalla de consumo real (receta × producido, editable).
  * La autorización real la hace el backend; aquí solo se ocultan los botones que no aplican.
  */
 export function AccionesOrden({ orden, roles }: { orden: OrdenDetalle; roles: string[] }) {
@@ -71,7 +72,7 @@ export function AccionesOrden({ orden, roles }: { orden: OrdenDetalle; roles: st
     const sinLotes = orden.lotesProducidos.length === 0;
     explicacion = sinLotes
       ? 'Registra cada lote que sale de producción. Al completar se descuentan las materias primas del inventario.'
-      : `${orden.lotesProducidos.length} lote(s) registrados. Cuando termines, completa la orden: se descuentan las materias primas reservadas.`;
+      : `${orden.lotesProducidos.length} lote(s) registrados. Cuando termines, completa la orden: se descuenta lo que de verdad se gastó.`;
     principal = {
       label: 'Registrar producción',
       onPress: () => router.push({ pathname: '/(app)/produccion/producir/[id]', params: { id: orden.id } }),
@@ -79,15 +80,7 @@ export function AccionesOrden({ orden, roles }: { orden: OrdenDetalle; roles: st
     secundaria = {
       label: sinLotes ? 'Completar (registra un lote primero)' : 'Completar orden',
       disabled: sinLotes,
-      onPress: () =>
-        confirmar(
-          'Completar orden',
-          `Producido: ${num(orden.cantidadRealProducida)} de ${num(orden.cantidadObjetivo)}.\n\nSe descontarán del inventario las materias primas reservadas:\n${materiales}\n\nEsta acción no se puede deshacer.`,
-          'Completar',
-          'completar',
-          'Orden completada y materias primas descontadas.',
-          true,
-        ),
+      onPress: () => router.push({ pathname: '/(app)/produccion/completar/[id]', params: { id: orden.id } }),
     };
   }
 

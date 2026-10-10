@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuthStore } from '@/core/auth';
 import type { ApiError } from '@/core/http/apiClient';
 import { Badge } from '@/components/ui/Badge';
@@ -20,6 +20,7 @@ import { useProductsByIds } from '@/features/catalog/hooks';
  */
 export default function ProductionOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const roles = useAuthStore((s) => s.user?.roles) ?? [];
   const order = useOrder(id ?? '');
   const { map: locations } = useLocationMap();
@@ -72,6 +73,16 @@ export default function ProductionOrderScreen() {
                 />
               ) : null}
             </View>
+
+            {o.jornada ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/(app)/produccion/jornada/[codigo]', params: { codigo: o.jornada! } })}
+                className="mt-3 self-start rounded-full border border-frost-700 bg-white px-3 py-1"
+              >
+                <Text className="text-xs font-semibold text-frost-900">Ver jornada {o.jornada}</Text>
+              </Pressable>
+            ) : null}
 
             {o.estado === 'Cancelada' && o.canceladoMotivo ? (
               <View className="mt-4 rounded-2xl bg-graphite-400/15 p-4">
@@ -154,7 +165,7 @@ export default function ProductionOrderScreen() {
               {o.consumos.length === 0 ? (
                 <Text className="text-sm text-graphite-600">
                   {o.estado === 'Planificada' || o.estado === 'EnProceso'
-                    ? 'Las materias primas se descuentan del inventario al completar la orden.'
+                    ? 'Al completar la orden se descuenta lo que de verdad se gastó (receta × lo producido, corregible).'
                     : 'No hubo consumos.'}
                 </Text>
               ) : (

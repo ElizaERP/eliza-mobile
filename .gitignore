@@ -1,6 +1,7 @@
 node_modules/
 .expo/
 dist/
+dist-ci/
 .env
 *.log
 keycloak/.env.keycloak

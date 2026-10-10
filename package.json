@@ -8,7 +8,9 @@
     "start:clear": "expo start -c",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "typecheck": "tsc --noEmit",
+    "tipos:rutas": "node scripts/generar-tipos-rutas.mjs",
+    "typecheck": "npm run tipos:rutas && tsc --noEmit",
+    "verificar": "npm run typecheck && expo export --platform android --output-dir dist-ci",
     "kc:provision": "node keycloak/provision.mjs",
     "kc:export": "node keycloak/export.mjs",
     "actualizar": "node scripts/publicar-actualizacion.mjs"

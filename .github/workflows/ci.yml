@@ -1,0 +1,44 @@
+name: CI
+
+# Cada PR y cada push a main: tipos (con rutas tipadas) y que el bundle de
+# Android compile. Si esto pasa, `npm run actualizar` y el build de EAS no
+# deberían fallar por un error de código.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Tipos y bundle Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Tipos (rutas tipadas + tsc)
+        run: npm run typecheck
+
+      - name: Bundle Android (expo export)
+        run: npx expo export --platform android --output-dir dist-ci
+        env:
+          CI: '1'
+          EXPO_OFFLINE: '1'
+
+      - name: El bundle existe
+        run: test -n "$(find dist-ci/_expo/static/js/android -name '*.hbc' -print -quit)"

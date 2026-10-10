@@ -29,8 +29,17 @@ if (!perfil || perfil.channel !== canal || !url) {
 }
 
 console.log(`Publicando en el canal "${canal}" con la API ${url}`);
+// --platform android: la app no tiene versión web (sin esto EAS intenta empaquetar
+//   también para web y falla pidiendo react-native-web). Cuando haya iOS: 'all'.
+// --environment: evita la pregunta "Select environment" (mismo nombre que el canal).
 // Comillas dobles fuera del mensaje: cmd.exe no las escapa de forma confiable.
-const args = ['eas-cli', 'update', '--channel', canal, '--message', mensaje.trim().replace(/"/g, "'")];
+const args = [
+  'eas-cli', 'update',
+  '--channel', canal,
+  '--environment', canal,
+  '--platform', 'android',
+  '--message', mensaje.trim().replace(/"/g, "'"),
+];
 const env = { ...process.env, EXPO_PUBLIC_API_BASE_URL: url };
 // En Windows npx es un .cmd y hay que lanzarlo con shell; la shell separa por
 // espacios, así que el mensaje va entre comillas (si no, "Prueba de algo" llega

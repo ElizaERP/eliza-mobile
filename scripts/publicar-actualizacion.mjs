@@ -29,9 +29,13 @@ if (!perfil || perfil.channel !== canal || !url) {
 }
 
 console.log(`Publicando en el canal "${canal}" con la API ${url}`);
-const r = spawnSync('npx', ['eas-cli', 'update', '--channel', canal, '--message', mensaje.trim()], {
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-  env: { ...process.env, EXPO_PUBLIC_API_BASE_URL: url },
-});
+// Comillas dobles fuera del mensaje: cmd.exe no las escapa de forma confiable.
+const args = ['eas-cli', 'update', '--channel', canal, '--message', mensaje.trim().replace(/"/g, "'")];
+const env = { ...process.env, EXPO_PUBLIC_API_BASE_URL: url };
+// En Windows npx es un .cmd y hay que lanzarlo con shell; la shell separa por
+// espacios, así que el mensaje va entre comillas (si no, "Prueba de algo" llega
+// a eas como cuatro argumentos sueltos).
+const r = process.platform === 'win32'
+  ? spawnSync(['npx', ...args.map((a) => (/\s/.test(a) ? `"${a}"` : a))].join(' '), { stdio: 'inherit', shell: true, env })
+  : spawnSync('npx', args, { stdio: 'inherit', env });
 process.exit(r.status ?? 1);

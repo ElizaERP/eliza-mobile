@@ -18,7 +18,8 @@ npm run actualizar -- "Qué cambió, en una línea"
 ```
 
 El script toma la URL de la API del perfil `preview` de `eas.json` (la misma
-que usa el APK), no del `.env` local. Canal de producción (cuando exista la
+que usa el APK), no del `.env` local, y publica solo para Android (la app no
+tiene versión web). Canal de producción (cuando exista la
 build de Play Store): `npm run actualizar -- "Qué cambió" production`.
 
 ## Cuándo SÍ hay que construir un APK nuevo

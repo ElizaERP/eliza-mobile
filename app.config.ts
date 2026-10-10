@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   name: 'ELIZA',
   slug: 'eliza-mobile',
   owner: 'santodev097',
-  version: '0.11.0',
+  version: '0.12.0',
   scheme: 'eliza',
   orientation: 'portrait',
   userInterfaceStyle: 'light',

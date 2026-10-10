@@ -1,5 +1,5 @@
 import type { Tone } from '@/features/catalog/labels';
-import type { EstadoOrden, PrioridadOrden } from './api';
+import type { EstadoJornada, EstadoOrden, PrioridadOrden } from './api';
 
 export const ESTADO_ORDEN: Record<EstadoOrden, { label: string; tone: Tone }> = {
   Planificada: { label: 'Planificada', tone: 'info' },
@@ -35,3 +35,10 @@ export function num(n: number | null | undefined): string {
   if (typeof n !== 'number' || !Number.isFinite(n)) return '—';
   return n.toLocaleString('es-CO', { maximumFractionDigits: 3 });
 }
+
+export const ESTADO_JORNADA: Record<EstadoJornada, { label: string; tone: Tone }> = {
+  Planificada: { label: 'Planificada', tone: 'info' },
+  EnProceso: { label: 'En proceso', tone: 'warn' },
+  Completada: { label: 'Completada', tone: 'ok' },
+  Cancelada: { label: 'Cancelada', tone: 'neutral' },
+};
